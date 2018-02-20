@@ -112,7 +112,7 @@ public:
 				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
 				// Stiffen the angle gain linearly as a function of the extension
 				// This way, more torque is provided as the moment arm becomes longer.
-				limb[i].setGain(ANGLE, 0.8 + 0.2 * ((extDes - 0.12) / 0.13), 0.03);
+				limb[i].setGain(ANGLE, 1.2 + 0.2 * ((extDes - 0.12) / 0.13), 0.03);
 				limb[i].setPosition(ANGLE, angDes);
 
 				limb[i].setGain(EXTENSION, 120, 4);
@@ -126,7 +126,7 @@ public:
 
 			for (int i = 0; i < P->limbs_count; ++i) {
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
-				limb[i].setGain(ANGLE, 1.0, 0.03);
+				limb[i].setGain(ANGLE, 1.5, 0.03);
 				limb[i].setGain(EXTENSION, 120, 4);
 				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
 				if(isFront(i)) {
@@ -140,7 +140,7 @@ public:
 				
 				// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
 				// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
-				if (S->millis-tLast > 750) {
+				if (S->millis-tLast > 1000) {
 					mode = FH_LEAP;
 					tLast = S->millis;
 					unitUpdated = false;
@@ -164,7 +164,7 @@ public:
 				
 				// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
 				// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
-				if (limb[i].getPosition(EXTENSION) > 2.7) {
+				if (limb[i].getPosition(EXTENSION) > 3) {
 					mode = FH_LAND;
 					tLast = S->millis;
 					unitUpdated = false;
@@ -180,7 +180,7 @@ public:
 				exCmd = 0.25;
 				// Sets the desired leg angle to be facing downward plus a leg splay in the front
 				// and back. 
-				angDes = (isFront(i)) ?  -S->imu.euler.y - 0.5 : -S->imu.euler.y + 0.2;
+				angDes = (isFront(i)) ?  -S->imu.euler.y : -S->imu.euler.y + 0.2;
 				
 				limb[i].setGain(ANGLE, 1.2, 0.03);
 				limb[i].setPosition(ANGLE, angDes);
@@ -192,7 +192,7 @@ public:
 				// grace period so that the legs can settle to their landing extension, 
 				// without their inertia triggering a false positive. 
 			
-				if (S->imu.euler.y >= 0.5*PI && S->millis-tLast > 30 ) {
+				if (S->millis-tLast > 50) {
 					mode = FH_ABSORB;
 					tLast = S->millis;
 					exCmd = 0.25;
@@ -210,15 +210,22 @@ public:
 				exCmd = 0.25;
 				// Sets the desired leg angle to be facing downward plus a leg splay in the front
 				// and back. 
-				angDes = (isFront(i)) ?  PI + 0.5 : -S->imu.euler.y + 0.2;
-				
-				limb[i].setGain(ANGLE, 1.2, 0.03);
+				angDes = (isFront(i)) ?  -S->imu.euler.y + 0.75 : -S->imu.euler.y + 0.2;
+				extDes = (isFront(i)) ?  0.25 : 0.2;
+
+				limb[i].setGain(ANGLE, 2, 0.03);
 				limb[i].setPosition(ANGLE, angDes);
 
-				limb[i].setGain(EXTENSION, 150, 5);
-				limb[i].setPosition(EXTENSION, exCmd);
+				if(isFront(i)){
+					limb[i].setGain(EXTENSION, 150, 10);
+					limb[i].setPosition(EXTENSION, exCmd);
+				} else {
+					limb[i].setGain(EXTENSION, 150, 1);
+					limb[i].setPosition(EXTENSION, exCmd);
+				}
+				
 
-				if (S->millis-tLast > 3000) {
+				if (S->millis-tLast > 750) {
 					mode = FH_STAND;
 					tLast = S->millis;
 					exCmd = 0.25;
