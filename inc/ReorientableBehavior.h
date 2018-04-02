@@ -21,15 +21,15 @@ class ReorientableBehavior : public Behavior
 {
   // angleFromUpright is the spherical angle of the upright vector from the 
   // inertial upright vector [0,0,1]. It is between 0, pi
-  float angleFromUpright;
+  float angleFromUpright = 0;
 public:
   // Limit before which reorientating kicks in
-  float ANGLE_LIMIT;
+  float ANGLE_LIMIT = 0.7;
 
   /**
    * This variable is set to true if the robot is upside down
    */
-  bool bInverted;
+  bool bInverted = false;
 
   /**
    * @brief Depending on if inverted, returns if this leg is in the front or rear of the robot
@@ -56,9 +56,6 @@ public:
   bool isReorienting();
 
   void reorientUpdate();
-
-public:
-  ReorientableBehavior() : angleFromUpright(0), ANGLE_LIMIT(0.9) {}
 };
 
 /** @} */ // end of addtogroup

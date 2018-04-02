@@ -26,8 +26,8 @@ public:
 	}
 	/**
 	 * @brief Returns motor position before a zero offset or direction is applied
-	 * @details Can be used to set the zero position of motors
-	 * @return Raw zero position returned from the motor
+	 * @details Can be used to set the zero position of motors.
+	 * @return Raw zero position returned from the motor.
 	 */
 	float getRawPosition();
 	
@@ -56,7 +56,7 @@ public:
 		return S->joints[i].torqueEst;
 	}
 	/**
-     * @brief Gets the joint current reported by the motor controller (if available)
+     * @brief Gets the joint current reported by the motor controller (if available).
      * 
      * @return The current in Amps. 
      */
@@ -64,23 +64,23 @@ public:
 		return S->joints[i].current;
 	}
 	/**
-     * @brief Gets the joint temperature reported by the motor controller (if available)
+     * @brief Gets the joint temperature reported by the motor controller (if available).
      * 
-     * @return The temperature in C
+     * @return The temperature in C.
      */
 	inline float getTemperature() {
 		return S->joints[i].temperature;
 	}
 	/**
 	 * @brief Returns the raw signal sent to the motor when in PWM mode (`P->joints[i].mode = JointMode_PWM`), or when setOpenLoop() or setPosition() are used.
-	 * @return Raw PWM value between [-1, 1]
+	 * @return Raw PWM value between [-1, 1].
 	 */
 	float getOpenLoop();
 
 	/**
 	 * @brief Uses PWM to approximate voltage control of the motor. 
-	 * @details The PWM value should be between 0 and 1 for forward operation, and -1 and 0 for reverse operation 
-	 * @param setpoint The PWM value between [-1, 1]
+	 * @details The PWM value should be between 0 and 1 for forward operation, and -1 and 0 for reverse operation.
+	 * @param setpoint The PWM value between [-1, 1].
 	 */
 	inline void setOpenLoop(float setpoint) {
 		C->joints[i].mode = JointMode_PWM;
@@ -88,16 +88,16 @@ public:
 	}
 	/**
      * @brief Sets the proportional and derivative gains for a PD controller of motor position. 
-     * @param Kp the desired proportional gain.
-     * @param Kd desired derivative gain.
+     * @param Kp The desired proportional gain.
+     * @param Kd The desired derivative gain.
      */
 	inline void setGain(float Kp, float Kd = 0) {
 		C->joints[i].Kp = Kp;
 		C->joints[i].Kd = Kd;
 	}
 	/**
-	 * @brief Sets the desired position for the motor, to be used in the PD Controller defined by setGain()
-	 * @param setpoint The desired position for the motor.
+	 * @brief Sets the desired position for the motor, to be used in the PD Controller defined by setGain().
+	 * @param setpoint The desired position for the motor, in radians relative to a pre-defined zero.
 	 */
 	inline void setPosition(float setpoint) {
 		C->joints[i].mode = JointMode_POSITION;
@@ -130,7 +130,7 @@ extern Joint joint[];
 #define MAX_JOINT_PER_LIMB_COUNT    	6
 
 /**
- * M = dim of end-effector space. TODO for now Jacobians are square; deal with redundancy etc. later
+ * M = dim of end-effector space.
  */
 #define MAX_END_EFF_PER_LIMB_COUNT    6
 
@@ -156,22 +156,28 @@ typedef void (*FKFunType)(const float *kinParams, const float *jointAngs, float 
 //typedef void (*FKFunType)(const float *, const VecN&, VecN&, MatN&);
 
 /**
- * @brief Helpful define for extension end-effector coordinate for planar leg (e.g. symmetric 5 bar)
+ * @brief Helpful define for extension end-effector coordinate for planar leg.
  */
 #define EXTENSION (0)
+/**
+ * @brief Helpful define for extension end-effector coordinate for planar leg.
+ */
 #define CARTX 		(0)
 /**
- * @brief Helpful define for angle end-effector coordinate for planar leg (e.g. symmetric 5 bar)
+ * @brief Helpful define for angle end-effector coordinate for planar leg.
  */
 #define ANGLE			(1)
+/**
+ * @brief Helpful define for angle end-effector coordinate for planar leg.
+ */
 #define CARTZ 		(1)
 /**
- * @brief Helpful define for abduction angle end-effector coordinate for 3DOF leg (e.g. parallel 5 bar)
+ * @brief Helpful define for abduction angle end-effector coordinate for 3DOF leg.
  */
 #define ABDUCTION	(2)
 
 /**
- * @brief Basic abstraction for controlling pre-defined kinematic chains
+ * @brief Basic abstraction for controlling pre-defined kinematic chains.
  */
 class Limb {
 	const int i; // referenced to the limbs in LimbParams
@@ -200,10 +206,13 @@ class Limb {
 	float limbForceDes[MAX_END_EFF_PER_LIMB_COUNT];
 #endif
 
+	Vector3 extForce, extTorque;
+	bool extWrenchAvailable = false;
+
 public:
 	/**
-	 * @brief At runtime, set dims of the dynamic sizes at init. For now must use M==N
-	 * @details Use this when adding new limbs or modifying existing presets after init()
+	 * @brief At runtime, set dims of the dynamic sizes at init. For now must use M==N.
+	 * @details Use this when adding new limbs or modifying existing presets after init().
 	 * 
 	 * @param M The number of end-effector DOFs
 	 * @param N The number of joints (*must equal M for now*)
@@ -218,50 +227,67 @@ public:
 			i(_i) {
 	}
 	/**
-	 * @brief This function gets the position of a generalized coordinate of the limb
+	 * @brief This function gets the position of a generalized coordinate of the limb.
 	 * @param coord an integer associated with one of the degrees-of-freedom of the limb
-	 * @return the position of the limb in that coordinate
+	 * @return The position of the limb in that coordinate.
 	 */
 	inline float getPosition(int coord) {
 		return position[coord];
 	}
 	/**
-	 * @brief This function gets the velocity of a generalized coordinate of the limb
+	 * @brief This function gets the velocity of a generalized coordinate of the limb.
 	 * @param coord an integer associated with one of the degrees-of-freedom of the limb
-	 * @return the velocity of the limb in that coordinate.
+	 * @return The velocity of the limb in that coordinate.
 	 */
 	inline float getVelocity(int coord) {
 		return velocity[coord];
 	}
 	/**
-	 * @brief Get the world-frame velocity of the end effector
-	 * @details This can be used to estimate body velocity if the end-effector is known to be stationary
+	 * @brief Get the world-frame velocity of the end effector.
+	 * @details This can be used to estimate body velocity if the end-effector is known to be stationary.
 	 * 
 	 * @param toeSpeed world-frame velocity of the end-effector relative to the CoM
 	 */
 	void getVelocityWorldFrame(Vector3& toeSpeed);
 	/**
-	 * @brief End-effector force (linear component of wrench)
-	 * @details Uses joint torque estimates and transforms through the infinitesimal kinematics to give force estimates at the end effector
+	 * @brief Gets the end-effector force (linear component of wrench).
+	 * @details Uses joint torque estimates and transforms through the infinitesimal kinematics to give force estimates at the end effector.
 	 * 
 	 * @param coord an integer associated with one of the degrees-of-freedom of the limb
-	 * @return the component of force along coordinate coord
+	 * @return The component of force along coordinate coord.
 	 */
 	inline float getForce(int coord) {
 		return force[coord];
 	}
 	/**
-	 * Set Limb Open Loop
+	 * @brief Gets the end-effector external wrench (external contact force and momentum). Uses sensors if available, otherwise uses estimator.
+	 * 
+	 * @param extForceOut external force vector (can pass NULL)
+	 * @param extTorqueOut external torque vector (can pass NULL)
+	 * @return true if available,
+	 *         false if unavailable (outputs not set)
+	 */
+	inline bool getExternalWrench(Vector3 *extForceOut, Vector3 *extTorqueOut) {
+		if (!extWrenchAvailable)
+			return false;
+		if (extForceOut != NULL)
+			*extForceOut = extForce;
+		if (extTorqueOut != NULL)
+			*extTorqueOut = extTorque;
+		return true;
+	}
+	/**
+	 * Sets a limb to enable open loop torque control.
 	 * @brief This function uses voltage control on a generalized coordinate of the limb.
      * @param coord an integer associated with one of the degrees-of-freedom of the limb
-	 * @param setpoint the PWM value for the associated voltage control. 
+	 * @param setpoint the PWM value for the associated voltage control
 	 */
 	inline void setOpenLoop(int coord, float setpoint) {
 		cmd[coord].mode = JointMode_PWM;
 		cmd[coord].setpoint = setpoint;
 	}
 	/**
-	 * @brief This function sets PD controller gains for a generalized coordinate of the limb
+	 * @brief Sets PD controller gains for a generalized coordinate of the limb
 	 * @param coord an integer associated with one of the degrees-of-freedom of the limb
 	 * @param Kp the proportional gain for the PD controller
 	 * @param Kd the derivative gain for the PD controller 

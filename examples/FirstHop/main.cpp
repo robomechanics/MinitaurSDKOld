@@ -9,11 +9,14 @@
 #include <math.h>
 #include <Motor.h>
 #include <ReorientableBehavior.h>
+#include <unistd.h>
 
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
 const float motZeros[8] = {2.570, 3.167, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+// const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
+
 #endif
 
 // State machine representation of behavior
@@ -51,7 +54,8 @@ public:
 	// which in turn forces the state machine into FH_LEAP
 	void signal(uint32_t sig)
 	{
-		mode = FH_LEAP;
+		if(sig > 1)
+			mode = FH_LEAP;
 	}
 
 	void begin()
@@ -90,7 +94,7 @@ public:
 			// C->behavior.pose.position.z can be commanded from the joystick (the left vertical axis by default)
 			// We map this using map() to the desired leg extension, so that the joystick can be used to raise
 			// and lower the standing height between 0.12 and 0.25 m
-			extDes = map(C->behavior.pose.position.z, -1.0, 1.0, 0.11, 0.25);
+			extDes = map(C->behavior.pose.position.z, -1.0, 1.0, 0.14, 0.25);
 			//If the commanded position is significantly lower than actual position,
 			// and the behavior has just switched from SIT to STAND, then we smoothly
 			// interpolate commanded positions between the last extension and the desired
@@ -142,14 +146,11 @@ public:
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
 				// Use setOpenLoop to exert the highest possible vertical force
 				limb[i].setOpenLoop(EXTENSION, 1);
-				limb[i].setGain(ANGLE, 1.75, 0.03);
-				angDes = (isFront(i)) ? -S->imu.euler.y + 0.5 : -S->imu.euler.y + 0.2;
-				angDes = (isFront(i)) ? -S->imu.euler.y : -S->imu.euler.y;
-
-				limb[i].setPosition(ANGLE, angDes);
+				limb[i].setGain(ANGLE, 1.0, 0.03);
+				limb[i].setPosition(ANGLE, -S->imu.euler.y);
 				// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
 				// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
-				if (limb[i].getPosition(EXTENSION) > 3)
+				if (limb[i].getPosition(EXTENSION) > 2.7)
 				{
 					mode = FH_LAND;
 					tLast = S->millis;
@@ -208,7 +209,7 @@ void debug()
 	// ioctl() with ADC_FILENO takes a uint16_t tuple for args, the first of which is the physical
 	// ADC pin, and the second of which is an output argument which is assigned the reading
 	ioctl(ADC_FILENO, IOCTL_CMD_ADC_READ, adcArgs);
-	printf("ADC reads %d\n", adcArgs[1]);
+	printf("%lu\t%lu\tADC reads %d\n", S->millis, clockTimeUS, adcArgs[1]);
 }
 
 int main(int argc, char *argv[])
@@ -224,9 +225,18 @@ int main(int argc, char *argv[])
 #else
 #error "Define robot type in preprocessor"
 #endif
-	FirstHop firstHop;								 // Declare instance of our behavior
+
+	// Declare instance of our behavior
+	FirstHop firstHop;
+
 	// Add our behavior to the behavior vector (Walk and Bound are already there)
 	behaviors.push_back(&firstHop);
+
+	// Change serial port baud speed. 115200, 8N1 is the default already, but this demonstrates how to change to other settings
+	SerialPortConfig cfg;
+	cfg.baud = 115200;
+	cfg.mode = SERIAL_8N1;
+	ioctl(STDOUT_FILENO, IOCTL_CMD_SERIAL_PORT_CFG, &cfg);
 
 	return begin();
 }

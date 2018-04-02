@@ -12,6 +12,7 @@
 
 
 /** @addtogroup SMath SDK math support
+ * @brief Math functions for the Ghost Robotics SDK.
  *  @{
  */
 
@@ -37,21 +38,21 @@ extern "C" float arm_cos_f32(float in);
 //}
 #else
 /**
- * @brief fast cosine function (uses native math libraries where applicable)
+ * @brief Fast cosine function (uses native math libraries where applicable).
  * 
  * @param f value (real)
  * @return cos(f)
  */
 #define fastcos 	cosf
 /**
- * @brief fast sine function (uses native math libraries where applicable)
+ * @brief Fast sine function (uses native math libraries where applicable).
  * 
  * @param f value (real)
  * @return sin(f)
  */
 #define fastsin	 	sinf
 /**
- * @brief fast square root function (uses fastest available native math libraries where applicable)
+ * @brief Fast square root function (uses fastest available native math libraries where applicable).
  * 
  * @param f value (real)
  * @return sqrt(f)
@@ -67,6 +68,9 @@ extern "C" float arm_cos_f32(float in);
 #elif defined(_MSC_VER)
 
 #endif
+/**
+ * @brief This is defined in the SDK to turn off asserts in Eigen.
+ */
 #define EIGEN_NO_DEBUG
 #include <Eigen/Dense>
 #include <Eigen/Core>
@@ -104,23 +108,35 @@ extern "C" float arm_cos_f32(float in);
 //Other macros
 
 #ifndef constrain
+/**
+ * @brief Constraints an amount between low and high inclusive.
+ */
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #endif
 
 #ifndef DEG_TO_RAD
-#define DEG_TO_RAD 0.017453292519943295769236907684886f
+/**
+ * @brief Used to convert degrees to radians.
+ */
+#define DEG_TO_RAD 0.017453292519943295769236907684886f 
 #endif
 #ifndef radians
+/**
+ * @brief Convert degrees to radians.
+ */
 #define radians(deg) ((deg)*DEG_TO_RAD)
 #endif
 #ifndef degrees
+/**
+ * @brief Convert radians to degrees.
+ */
 #define degrees(rad) ((rad)*RAD_TO_DEG)
 #endif
 
 // other funcs from WMath...define only if not MCU
 
 /**
- * @brief Map a float (different from Arduino implementation)
+ * @brief Map a float (this is different from the Arduino implementation).
  * 
  * @param x some real number
  * @param in_min 
@@ -131,7 +147,7 @@ extern "C" float arm_cos_f32(float in);
  */
 float map(float x, float in_min, float in_max, float out_min, float out_max);
 /**
- * @brief Linear interpolation between given endpoints
+ * @brief Linear interpolation between given endpoints.
  * @param from Lower endpoint
  * @param to Higher endpoint
  * @param frac float between 0.0 and 1.0
@@ -140,13 +156,11 @@ float map(float x, float in_min, float in_max, float out_min, float out_max);
 float interp1(float from, float to, float frac);
 
 /**
- * @brief Assumes xdata is sorted
- * @details [long description]
+ * @brief Assumes xdata is sorted.
  * 
- * @param Ndata [description]
- * @param xdata [description]
- * @param x [description]
- * @return [description]
+ * @param Ndata 
+ * @param xdata
+ * @param x 
  */
 inline float interp1(int Ndata, const float xdata[], const float ydata[], float x) {
   // Need at least two points
@@ -160,43 +174,47 @@ inline float interp1(int Ndata, const float xdata[], const float ydata[], float 
   }
   // At the extremes saturate
   if (x < xdata[0])
-    return ydata[0];//map(x, xdata[0], xdata[1], ydata[0], ydata[1]);
+    return ydata[0];
   if (x > xdata[Ndata-1])
-    return ydata[Ndata-1];//map(x, xdata[Ndata-2], xdata[Ndata-1], ydata[Ndata-2], ydata[Ndata-1]);
-  // shouldn't get here?
+    return ydata[Ndata-1];
+
+  // Shouldn't get here
   return ydata[0];
 }
 
+/**
+ * @brief Interpolate time.
+ */ 
 float interpFrac(uint32_t startTime, uint32_t endTime, uint32_t now);
 
 // Mod functions
 
 /**
- * @brief Mod an angle to between -PI and PI
+ * @brief Mod an angle to between -PI and PI.
  * @param f Input angle
  * @return Result between -PI and PI
  */
 float fmodf_mpi_pi(float f);
 /**
- * @brief Mod an angle to between 0 and 2*PI
+ * @brief Mod an angle to between 0 and 2*PI.
  * @param f Input angle
  * @return Result between 0 and 2*PI
  */
 float fmodf_0_2pi(float f);
 /**
- * @brief Mod between 0 and 1
+ * @brief Mod between 0 and 1.
  * @param f Input value
  * @return Result between 0 and 1
  */
 float fmodf_0_1(float f);
 /**
- * @brief Mod between -0.5 and +0.5
+ * @brief Mod between -0.5 and +0.5.
  * @param f Input value
  * @return Result between -0.5 and +0.5
  */
 float fmodf_mp5_p5(float f);
 /**
- * @brief Change coords to mean and diff on a circle (accounting for wraparound)
+ * @brief Change coords to mean and diff on a circle (accounting for wraparound).
  * @param a First angle in rad
  * @param b Second angle in rad
  * @param mean Mean angle
@@ -204,8 +222,9 @@ float fmodf_mp5_p5(float f);
  */
 extern void circleMeanDiff(float a, float b, float *mean, float *diff);
 
-// Digital low pass filter
-
+/**
+ * @brief Digital low pass filter.
+ */
 enum DLPFType {
 	DLPF_ANGRATE,   // Returns a speed for an angle (mods 2*pi)
 	DLPF_RATE,      // Returns a speed
@@ -214,7 +233,7 @@ enum DLPFType {
 };
 
 /**
- * @brief Digital autoregressive low pass filter
+ * @brief Digital autoregressive low pass filter.
  * @details Use by calling DLPF
  *
  */
@@ -271,7 +290,7 @@ public:
 };
 
 /**
- * @brief Generic proportional-derivative control (for use in a motor, look at the @ref Joint instead)
+ * @brief Generic proportional-derivative control (for use in a motor, look at the @ref Joint instead).
  */
 class PD: public DLPF {
 public:

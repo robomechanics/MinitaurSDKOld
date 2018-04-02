@@ -18,11 +18,15 @@
 class Peripheral {
 public:
   /**
-   * @brief Function called to initialize the peripheral
+   * @brief Function called to initialize behavior / peripheral.
+   *
+   * @details This gets called when the behavior / peripheral is started. May be called multiple times, i.e. when switching behaviors.
    */
   virtual void begin() = 0;
   /**
-   * @brief Function called repeatedly (at CONTROL_RATE) to update the peripheral
+   * @brief Function called repeatedly (at CONTROL_RATE) to update.
+   *
+   * @details The main logic for the behavior / peripheral goes here.
    */
   virtual void update() = 0;
 };

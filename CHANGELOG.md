@@ -8,6 +8,59 @@ The version numbers are referenced to the git tags.
 
 ## [Unreleased]
 
+## [0.1.15] - 2018-04-02
+
+### Added
+- Aux serial port access for users
+
+### Fixed
+- Position unwrap bug in high-gear-ratio instances
+
+## [0.1.14] - 2018-03-15
+
+### Added
+- ReadRobot example (faster logging using Peripheral)
+
+### Fixed
+- Bad static libs
+
+## [0.1.13] - 2018-03-14
+
+### Added
+- Microsecond clock time on the microcontroller
+- Ability to configure serial port settings for the programming micro USB port
+- Other internal changes not ready for release
+
+## [0.1.12] - 2018-02-26
+
+### Added
+- Support and documentation for user I2C
+- Support and documentation for user digital I/O
+
+## [0.1.11] - 2018-02-13
+### Added
+- Full support for joysticks in simulation
+- Gait work for NGR
+- Support for Minitaur E new variant with upgraded electronics
+- CI-built ARM libs
+- Full support for Taranis Q X7 joystick
+
+## [0.1.10] - 2018-01-25
+### Fixed
+- microsecond counter overflow bug causing behavior updates to stop after 71 minutes
+
+### Added
+- support for gamepad joysticks in simulations (partial) #38
+- support for Dynamixel protocol 1 (partial)
+- support for Dynamixel protocol 2 (full)
+- support for async Dynamixel update in PWM or POSITION modes #31
+- posture controller support for 2DOF legs
+- posture controller support for leg pairs with 3DOF legs
+- S.bus driver full support
+- ioctl support for body LED lighting
+- ioctl support for switching radio receiver
+- Gait work in progress
+
 ## [0.1.9] - 2017-12-14
 ### Added
 - posture controller (internal)

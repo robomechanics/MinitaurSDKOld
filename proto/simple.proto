@@ -39,19 +39,19 @@ message Pose {
   Vector3 position              = 1;//linear position components (xyz)
   Quaternion orientation        = 2;//orientation component of pose
 }
-// Subset of ROS sensor_msgs/Imu
+// Subset of ROS `sensor_msgs/Imu`.
 message Imu {
-  // Initially this may be omitted in favor of euler
+  // To be supported in a future SDK release.
   Quaternion orientation        = 1;
-  Vector3 angular_velocity      = 2;//angular velocity in body frame
-  Vector3 linear_acceleration   = 3;//linear acceleration of the body in the body frame
-  // Roll, pitch yaw in that order. Added for convenience so people don't have to rewrite all their code
+  Vector3 angular_velocity      = 2; // Angular velocity in the body frame.
+  Vector3 linear_acceleration   = 3; // Linear acceleration of the body in the body frame.
+  // Roll, pitch, yaw in that order.
   Vector3 euler                 = 4;
   // Covariance
-  repeated float orientation_covariance = 5 [(nanopb).max_count = 9];// 3x3 P matrix
-  // accelerometer covariance scalar (multiplied by Identity of size 3)
+  repeated float orientation_covariance = 5 [(nanopb).max_count = 9]; // 3x3 P matrix.
+  // Accelerometer covariance scalar (multiplied by Identity of size 3).
   float linear_acceleration_covariance = 6;
-  // gyro covariance scalar (multiplied by Identity of size 3)
+  // Gyro covariance scalar (multiplied by Identity of size 3).
   float angular_velocity_covariance = 7;
 }
 // Inspired by but different from ROS `sensor_msgs/JointState`
@@ -73,12 +73,15 @@ message BatteryState {
   float cell_voltage            = 4 [(nanopb).max_count = 12];// (optional) individual cell voltages
 }
 // Inspired by ROS `sensor_msgs/Joy`.
+//
+// Represents joystick input.
 // 
-// Used for Android control app as well
+// Used by RC controllers, gamepad controllers, and the Android control app as well.
 // 
-// Depending on if the MCU/computer is doing the gait control, it will convert Joy to BehaviorCmd
+// Depending on if the MCU/computer is doing the gait control, it will convert Joy to BehaviorCmd.
+// 
 message Joy {
-  // Array of axes. Nominally axes 0--3 correspond to channels 1--4 in an RC remote: 
+  // Array of axes. Nominally axes 0 to 3 correspond to channels 1 to 4 in an RC remote: 
   // 0=right stick horizontal, 
   // 1=right stick vertical, 
   // 2=left stick vertical
@@ -86,7 +89,7 @@ message Joy {
   repeated float axes           = 1 [(nanopb).max_count = 4];
   // Array of buttons. Nominally, 
   // button 0 is for BehaviorCmd::id selecion;
-  // button 1 is for 0=stop,1=start,2+ = behavior-dependent (maps to BehaviorCmd::mode).
+  // button 1 is for 0=stop,1=start, 2+ is behavior-dependent (maps to BehaviorCmd::mode).
   repeated int32 buttons        = 2 [(nanopb).max_count = 10];
 }
 // Type of Joystick connected to the MCU
@@ -116,6 +119,8 @@ message JointParams {
     GRBL      = 0;//PWM motor controller
     GRBLE     = 1;//EtherCAT motor controller
     RIGID     = 2;//Rigid joint (oxymoron, but useful)
+    DXL_PWM   = 3;//Dynamixel with open-loop control (cannot mix with DXL_POS for now)
+    DXL_POS   = 4;//Dynamixel with only position control (cannot mix with DXL_PWM for now)
   }
   // Actuator types
   Type type                     = 1;

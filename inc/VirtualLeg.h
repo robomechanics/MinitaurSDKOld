@@ -70,7 +70,7 @@ public:
 	/**
 	 * @brief Gets the average velocity of the legs
 	 * @param i index for iterating through the legs
-	 * @return Average velcoity of the legs
+	 * @return Average velocity of the legs
 	 */
 	inline float getVelocity(int i) {
 		float thesum=0;

@@ -14,7 +14,7 @@
  */
 
 
-extern const int CONTROL_RATE;
+extern int CONTROL_RATE;
 
 /**
  * @brief Class for clocked gaits
