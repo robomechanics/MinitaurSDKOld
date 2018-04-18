@@ -14,10 +14,18 @@
 #include "Behavior.h"
 
 #include <vector>
+
 #if defined(_MSC_VER)
 typedef int64_t useconds_t;
+#define UNUSED_PARAM
+// unistd
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
 #else
 #include <sys/types.h> // for useconds_t
+#include <unistd.h>
+// #define UNUSED_PARAM __attribute__((unused_))
 #endif
 
 /** @addtogroup SDK Basic SDK operations
@@ -221,6 +229,15 @@ enum MCUFD
 	 * the logical value at the pin (0 or 1)
 	 */
 	DIO_FILENO,
+	/**
+	 * Upstream ethernet port (only on mbm). This is physically the lower RJ45 socket on mbm0.x.
+	 * 
+	 * read() can be called: only packets that properly match the header format will appear (see CommandOverEthernet example)
+	 * The user cannot access this file in relay mode.
+	 * 
+	 * write() can be called to write to the userData region of the state packet a maximum of GRM_USER_DATA_SIZE bytes (see CommandOverEthernet example)
+	 */
+	ETH_UPSTREAM_FILENO,
 };
 
 // Coded colors for toe lighting (subject to change)
@@ -258,6 +275,8 @@ extern "C" int ioctl(int filedes, int command, void *args = NULL);
 #define IOCTL_CMD_JOYSTICK_SET_SENS	(0)
 #define IOCTL_CMD_JOYSTICK_SET_TYPE	(1)
 #define IOCTL_CMD_ADC_READ IOCTL_CMD_RD
+#define IOCTL_CMD_GET_LAST_UPDATE_TIME (2)
+#define IOCTL_CMD_STATE_COPY_CALLBACK (3)
 
 // Serial port configurations
 #if !defined(SERIAL_8N1)
@@ -272,6 +291,26 @@ extern "C" int ioctl(int filedes, int command, void *args = NULL);
 #define SERIAL_7O2 0x3C
 #define SERIAL_8O2 0x3E
 #endif
+
+#if !defined(GRM_USER_DATA_SIZE)
+#define GRM_USER_DATA_SIZE 32
+#endif
+
+// Single byte
+#define GRM_MAGIC 0xab
+// For compatibility with Microsoft Windows compilers, GCC supports a set of #pragma directives which change the maximum alignment of members of structures
+#pragma pack(push, 1)
+// Moved this one here from Messaging
+typedef struct GRMHeader
+{
+	uint8_t magic, version; //magic MUST be GRM_MAGIC, otherwise nothing else is done
+	uint16_t totalSize;			//size is the total packet size
+	uint32_t checksum;			// EXCLUDES the header!
+	uint8_t numDoF;
+	uint8_t configBits; // lowest bit is 0 for "state" message, 1 for "command" message
+} GRMHeader;
+#pragma pack(pop)
+typedef uint16_t (*StateCopyCallbackType)(GRMHeader *, uint8_t *);
 
 #pragma pack(push,1)
 typedef struct SerialPortConfig

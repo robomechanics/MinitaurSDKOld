@@ -86,14 +86,19 @@ public:
 	 * 
 	 * @param toeSpeed world-frame velocity of the end effector
 	 */
-	inline void getVelocityWorldFrame(Vector3& toeSpeed) {
-		float thesumx = 0;
-		Vector3 dummy;
+	inline Vector3 getVelocityWorldFrame()
+	{
+		Vector3 ret = {0, 0, 0}, dummy;
 		for (int j=0; j<N; ++j) {
-			limb[legi[j]].getVelocityWorldFrame(dummy);
-			thesumx += dummy.x;
+			dummy = limb[legi[j]].getVelocityWorldFrame();
+			ret.x += dummy.x;
+			ret.y += dummy.y;
+			ret.z += dummy.z;
 		}
-		toeSpeed.x = thesumx/((float)N);
+		ret.x = ret.x / ((float)N);
+		ret.y = ret.y / ((float)N);
+		ret.z = ret.z / ((float)N);
+		return ret;
 	}
 	/**
 	 * @brief Sets proportional and derivative gains for the virtual leg PD control

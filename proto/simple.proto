@@ -108,13 +108,38 @@ enum PlatformType{
   MCU       = 0;//On-board MCU
   OBC       = 1;//On-board computer
 }
+// Motor type (for use when we need actual motor parameters)
+enum MotorType
+{
+  U8_DD = 0;
+  U10P_G7 = 1;
+  U8II_G25 = 2;
+  DXL_MX106 = 3;
+  DCX32_GPX = 4;
+}
+// Params attached to a motor (not needed for core SDK functions, but needed for model-based work)
+message MotorModelParams
+{
+  float kE                = 1;//Back-EMF constant
+  float kT                = 2;//Torque constant
+  float kR                = 3;//Phase-phase resistance
+  float kJv               = 4;//Joint viscous damping coefficient
+  // If there is flux saturation, need a piecewise linear approx of current-torque relation
+  // the _count parameter must be equal for them
+  repeated float currents = 5 [ (nanopb).max_count = 10 ];
+  repeated float torques  = 6 [ (nanopb).max_count = 10 ];
+}
+// Numerical parameters needed only for model-based work
+message RobotModelParams {
+  // TODO
+}
 // Joint parameters. The user can modify these after calling init(), in order to:
 // * change the driver type;
 // * change the physical address;
 // * change the gear ratio, direction, zero (confiugration of the motor in the robot);
 // * change the motor parameters (for torque esimates).
 message JointParams {
-  // Actuator type enumeration
+  // Actuator type enumeration (related more to the interfacing electronics)
   enum Type {
     GRBL      = 0;//PWM motor controller
     GRBLE     = 1;//EtherCAT motor controller
@@ -131,9 +156,11 @@ message JointParams {
   int32 direction               = 4;
   // Zero offset configured in software (to be deprecated)
   float zero                    = 5;
-  // Motor params configured in software (to be deprecated)
-  float Kt                      = 6;
-  float R                       = 7;
+  // // Motor params configured in software (moved to MotorModelParamsm referenced through MotorType)
+  // float Kt                      = 6;
+  // float R                       = 7;
+  // Motor type
+  MotorType motorType           = 8;
 }
 // Limb parameters. The user can modify limb parameters after calling init(), such as changing the limb kinematics:
 // * select a specific kinematics function by changing `type`;
@@ -159,6 +186,8 @@ message LimbParams {
   uint64 fkFun                  = 3;
   // Assign joints to limbs
   repeated uint32 jointInd      = 4 [(nanopb).max_count = 6];
+  // Vector from COM to limb base (in body frame; should be a constant vector)
+  Vector3 d                     = 5; 
 }
 // Joint command modes. NOTE not all of these may be available for all drivers
 enum JointMode {

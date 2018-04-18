@@ -8,6 +8,27 @@ The version numbers are referenced to the git tags.
 
 ## [Unreleased]
 
+## [0.1.17] - 2018-04-16
+
+### Added
+- Better kinematic velocity estimate (accounts for body twist)
+- Improved bound initialization, leg angle offsets, turning control
+- Improved walk leg angle offsets, higher damping, speedDes rate limiter
+- CommandOverEthernet example custom state copy callback
+
+## Fixes
+- PWM duty = -1 bug on grble0.1
+- CommandOverEthernet example error checking
+
+## [0.1.16] - 2018-04-04
+
+### Added
+- CommandOverEthernet example
+- Ethernet support through file I/O
+
+### Fixed
+- Joystick range (command limiter) bug fixed
+
 ## [0.1.15] - 2018-04-02
 
 ### Added

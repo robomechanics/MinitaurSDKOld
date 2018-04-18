@@ -184,6 +184,7 @@ class Limb {
 
 	JointCmd cmd[MAX_END_EFF_PER_LIMB_COUNT];
 
+public:
 #if !defined(ARM_MATH_CM4)
 	VecM position, velocity, force;
 	// related joint states
@@ -191,6 +192,10 @@ class Limb {
 	MatN Jac;// square for now
 	// desired limb forces
 	VecM limbForceDes;
+
+	// separate metric versions (may be not required if we force metric kinematics in the future)
+	VecM metricPos, metricVel;
+	MatN metricJac;
 
 #else
 
@@ -204,12 +209,13 @@ class Limb {
 	float Jac[MAX_END_EFF_PER_LIMB_COUNT * MAX_JOINT_PER_LIMB_COUNT];
 	// desired limb forces
 	float limbForceDes[MAX_END_EFF_PER_LIMB_COUNT];
+
+	float *metricPos, *metricVel;
 #endif
 
-	Vector3 extForce, extTorque;
+	Vector3 extForce, extTorque, velCartW;
 	bool extWrenchAvailable = false;
 
-public:
 	/**
 	 * @brief At runtime, set dims of the dynamic sizes at init. For now must use M==N.
 	 * @details Use this when adding new limbs or modifying existing presets after init().
@@ -246,9 +252,9 @@ public:
 	 * @brief Get the world-frame velocity of the end effector.
 	 * @details This can be used to estimate body velocity if the end-effector is known to be stationary.
 	 * 
-	 * @param toeSpeed world-frame velocity of the end-effector relative to the CoM
+	 * @return world-frame velocity of the end-effector relative to the CoM
 	 */
-	void getVelocityWorldFrame(Vector3& toeSpeed);
+	Vector3 getVelocityWorldFrame();
 	/**
 	 * @brief Gets the end-effector force (linear component of wrench).
 	 * @details Uses joint torque estimates and transforms through the infinitesimal kinematics to give force estimates at the end effector.
