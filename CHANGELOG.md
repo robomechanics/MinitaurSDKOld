@@ -8,6 +8,22 @@ The version numbers are referenced to the git tags.
 
 ## [Unreleased]
 
+## [0.1.19] - 2018-06-06
+
+## Fixes
+- CommandOverEthernet lateral movement addition and battery state fix
+- Documentation
+
+## Added
+- Support for current control selection in GRBLE actuators
+- A way for users to set unwrapOffset when the SDK is keeping track of a gear ratio
+- Starter, Waddle, and RockNRoll Minitaur examples
+
+## [0.1.18] - 2018-05-04
+
+## Fixes
+- CommandOverEthernet ethernet read() function simultaneous driver and application access
+
 ## [0.1.17] - 2018-04-16
 
 ### Added

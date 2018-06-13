@@ -63,6 +63,12 @@ GRM_USER_DATA_SIZE = 32
 userDataFmt = '<'+str(GRM_USER_DATA_SIZE)+'B'
 userDataSize = struct.calcsize(userDataFmt)
 
+# Robot-specific stuff
+class RobotType:
+	MINITAUR = 1
+	NGR = 2
+robotType = RobotType.MINITAUR
+
 ''' Helper functions '''
 def grmCrc(data):
 	# crc32 only works properly on DWORD aligned buffers
@@ -96,28 +102,51 @@ def grmParseState(version, numDoF, dataNoHeader):
 		state['joy/buttons'] = np.array(state1[36:46])
 
 		# joints
-		state['joint/position'] = np.zeros((numDoF))
-		state['joint/velocity'] = np.zeros((numDoF))
-		state['joint/current'] = np.zeros((numDoF))
-		state['joint/temperature'] = np.zeros((numDoF))
-		state['joint/voltage'] = np.zeros((numDoF))
-		state['joint/effort'] = np.zeros((numDoF))
+		# The following is based on SDK.cpp. FIXME use the C program instead of the python one
+		if robotType == RobotType.MINITAUR:
+			ptol = [6, 7, 5, 4, 1, 0, 2, 3]
+			# indexed by j
+			zeros = [0.0, np.pi, np.pi, 0.0, 0.0, np.pi, np.pi, 0.0]
+			dirs = [1, 1, 1, 1, -1, -1, -1, -1]
+		else:
+			ptol = [8, 0, 1, 10, 4, 5, 9, 2, 3, 11, 6, 7]
+			# indexed by j
+			zeros = [0.0, 0.5 * np.pi, 0.0, 0.5 * np.pi, 0.0, 1.5 * np.pi, 0.0, 1.5 * np.pi, 0.0, 0.0, 0.0, 0.0]
+			dirs = [1, -1, 1, -1, -1, 1, -1, 1, -1, 1, -1, 1]
+		ndof = len(ptol)
+		state['joint/position'] = np.zeros((ndof))
+		state['joint/velocity'] = np.zeros((ndof))
+		state['joint/current'] = np.zeros((ndof))
+		state['joint/temperature'] = np.zeros((ndof))
+		state['joint/voltage'] = np.zeros((ndof))
+		state['joint/effort'] = np.zeros((ndof))
 		currIndex = state1Size
-		for j in range(numDoF):
+		
+		for p in range(numDoF):
 			pos, vel, curr, temp, volt, eff = struct.unpack(LANIFmt, dataNoHeader[currIndex:currIndex + LANISize])
-			state['joint/position'][j] = pos
-			state['joint/velocity'][j] = vel
-			# The following may not be available
-			state['joint/current'][j] = 0.001 * curr
-			state['joint/temperature'][j] = 0.01 * temp
-			state['joint/voltage'][j] = 0.001 * volt
-			state['joint/effort'][j] = eff
+			# p = physical address
+			# j is the logical ID
+			if p < ndof:
+				j = ptol[p]
+				jang = pos - zeros[j]
+				# want between -pi,pi
+				jang = (2 * np.pi + jang) % (2 * np.pi)
+				if jang > np.pi:
+					jang = jang - 2 * np.pi
+				jang = jang * dirs[j]
+				state['joint/position'][j] = jang
+				state['joint/velocity'][j] = vel * dirs[j]
+				# The following may not be available
+				state['joint/current'][j] = 0.001 * curr
+				state['joint/temperature'][j] = 0.01 * temp
+				state['joint/voltage'][j] = 0.001 * volt
+				state['joint/effort'][j] = eff
 			currIndex += LANISize
 
 		# user data
 		state['userData'] = struct.unpack(userDataFmt, dataNoHeader[currIndex: currIndex + userDataSize])
 		# currIndex += userDataSize
-	
+		
 	return state
 
 def openRXSocket():

@@ -67,8 +67,10 @@ import ros_interface
 # Our commands
 linear_x = 0
 angular_z = 0
-behaviorId = 1
-behaviorMode = 1
+behaviorId = 0
+behaviorMode = 0
+height = 0
+lateral = 0
 
 # Main
 if __name__ == "__main__":
@@ -101,13 +103,14 @@ It will print received data to terminal, and if ROS is found, also publish to RO
 		
 		# If ROS, get commands, otherwise, just walk forwards and backwards
 		if ros_interface.bROS:
-			linear_x, angular_z, behaviorId, behaviorMode = ros_interface.getCommands()
+			linear_x, angular_z, behaviorId, behaviorMode, height, lateral = ros_interface.getCommands()
 		else:
 			linear_x = 0.05 * np.sin(time.time()/2.0)
 
 		# Cap values
 		linear_x = max(min(linear_x, 1), -1)
 		angular_z = max(min(angular_z, 1), -1)
+		lateral = max(min(lateral, 1), -1)
 
 		# Pack BehaviorCmd (corresponding parsing code is in main.cpp)
 		# BehaviorCmd = behaviorId, twist, pose, behaviorMode
@@ -115,7 +118,7 @@ It will print received data to terminal, and if ROS is found, also publish to RO
 			behaviorId, 
 			linear_x, 0, 0,
 			0, 0, angular_z,
-			0, 0, 0, 0, 0, 0, 0,
+			0, lateral, height, 0, 0, 0, 0,
 			behaviorMode)
 
 		# TX
@@ -128,8 +131,7 @@ It will print received data to terminal, and if ROS is found, also publish to RO
 		# RX
 		try:
 			state, numDoF = ethernet.receivePacket(srx)
-			if not state:
-				continue
+			if not state: continue
 		except:
 			continue
 

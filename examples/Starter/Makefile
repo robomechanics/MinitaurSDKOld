@@ -4,7 +4,7 @@
 PORT=COM4
 
 # Select the robot (MINITAUR, or MINITAUR_E)
-ROBOT=MINITAUR
+ROBOT=MINITAUR_E
 
 # Don't modify below here -------------------------------------------------
 ifeq ($(ROBOT),MINITAUR)

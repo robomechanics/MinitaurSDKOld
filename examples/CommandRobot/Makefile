@@ -1,6 +1,6 @@
 
 # Select the serial port (e.g. COM4, /dev/tty.usbserial-*, /dev/ttyUSB*)
-PORT=COM11
+PORT=COM29
 #PORT=/dev/tty.usbserial-DN01Q8IR
 # PORT=/dev/tty.usbserial-DN02MSZX
 

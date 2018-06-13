@@ -22,6 +22,11 @@ typedef int64_t useconds_t;
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
+// These are POSIX
+#define write _write
+#define read _read
+extern "C" int _write(int file, char *data, int len);
+extern "C" int _read(int file, char *ptr, int len);
 #else
 #include <sys/types.h> // for useconds_t
 #include <unistd.h>

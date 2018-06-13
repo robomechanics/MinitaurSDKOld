@@ -18,7 +18,7 @@ const float motZeros[8] = {2.570, 3.167, 3.777, 3.853, 2.183, 1.556, .675, 2.679
 
 // State machine representation of behavior
 enum FHMode {
-	FH_SIT = 0, FH_STAND, FH_PRELEAP, FH_LEAP, FH_LAND,  FH_ABSORB
+	FH_SIT = 0, FH_STAND, FH_PRELEAP, FH_LEAP, FH_WAIT_FOR_UPRIGHT, FH_JUMP_UP, FH_LAND,  FH_ABSORB
 };
 
 /**
@@ -60,7 +60,7 @@ public:
 	}
 
 	void update() {
-		if (isReorienting())
+		if (isReorienting() && mode != FH_WAIT_FOR_UPRIGHT && mode != FH_JUMP_UP && mode != FH_ABSORB)
 			return;
 		C->mode = RobotCommand_Mode_LIMB;
 		if (mode == FH_SIT) {
@@ -131,10 +131,10 @@ public:
 				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
 				if(isFront(i)) {
 					limb[i].setPosition(ANGLE, angDes);
-					limb[i].setPosition(EXTENSION, 0.12);
+					limb[i].setPosition(EXTENSION, 0.28);
 				} else {
 					limb[i].setPosition(ANGLE, angDes);
-					limb[i].setPosition(EXTENSION, 0.28);
+					limb[i].setPosition(EXTENSION, 0.12);
 				}
 				
 				
@@ -154,34 +154,34 @@ public:
 				limb[i].setGain(ANGLE, 1.0, 0.03);
 				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
 				if(isFront(i)) {
-					limb[i].setOpenLoop(EXTENSION, 3);
-					limb[i].setPosition(ANGLE, angDes);
-				} else {
 					limb[i].setGain(EXTENSION, 0.4, 0.01);
 					limb[i].setPosition(EXTENSION, 0.5);
+					limb[i].setPosition(ANGLE, angDes);
+				} else {
+					limb[i].setOpenLoop(EXTENSION, 3);
 					limb[i].setPosition(ANGLE, angDes);
 				}
 				
 				
 				// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
 				// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
-				if (limb[i].getPosition(EXTENSION) > 3) {
-					mode = FH_LAND;
+				if (limb[i].getPosition(EXTENSION) > 3 || S->millis - tLast >=500) {
+					mode = FH_WAIT_FOR_UPRIGHT;
 					tLast = S->millis;
 					unitUpdated = false;
 				}
 			}
-		} else if (mode == FH_LAND) {
+		} else if (mode == FH_WAIT_FOR_UPRIGHT) {
 
 			for (int i = 0; i < P->limbs_count; ++i) {
 				
 				// This updates the parameters struct to switch back into meters as its units.
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 				// Sets the commanded length for landing to 0.25 meters
-				exCmd = 0.25;
+				exCmd = (i==0 || i ==2) ? 0.11 : 0.25;
 				// Sets the desired leg angle to be facing downward plus a leg splay in the front
 				// and back. 
-				angDes = (isFront(i)) ?  -S->imu.euler.y : -S->imu.euler.y + 0.2;
+				angDes = (i==0 || i ==2) ?  -S->imu.euler.y : S->imu.euler.y;
 				
 				limb[i].setGain(ANGLE, 1.2, 0.03);
 				limb[i].setPosition(ANGLE, angDes);
@@ -193,12 +193,55 @@ public:
 				// grace period so that the legs can settle to their landing extension, 
 				// without their inertia triggering a false positive. 
 			
-				if (S->millis-tLast > 50) {
-					mode = FH_ABSORB;
+				if (limb[0].getPosition(ANGLE) <= -1.4 || S->millis - tLast >=500) {
+					mode = FH_JUMP_UP;
 					tLast = S->millis;
 					exCmd = 0.25;
 					lastExtension = 0.25;
 
+				}
+			}
+		} else if (mode == FH_JUMP_UP) {
+
+			// for (int i = 0; i < P->joints_count; ++i)
+			// {
+			// 	// Use setOpenLoop to exert the highest possible vertical force
+			// 	if ((i == 0) || (i == 1) || (i == 4) || (i == 5))
+			// 	{
+			// 		joint[i].setOpenLoop(1);
+			// 	}
+			// 	// else
+			// 	// {
+			// 	// 	joint[i].setGain(1.0);
+			// 	// 	joint[i].setPosition((i==2 || i == 7) ? PI/4 : -3*PI/4);
+			// 	// }
+
+			// }
+
+			for (int i = 0; i < P->limbs_count; ++i) {
+				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+				// Use setOpenLoop to exert the highest possible vertical force
+				limb[i].setGain(ANGLE, 1.0, 0.03);
+				angDes = (i==0 || i == 2) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y+PI;
+				if(i==1 || i ==3)
+				{
+					limb[i].setGain(EXTENSION, 0.4, 0.01);
+					limb[i].setPosition(EXTENSION, 2.8);
+					limb[i].setPosition(ANGLE, angDes);
+				}
+				else
+				{
+					limb[i].setOpenLoop(EXTENSION, 2);
+					limb[i].setPosition(ANGLE, angDes);
+				}
+				
+				
+				// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
+				// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
+				if (limb[i].getPosition(EXTENSION) > 3  || S->millis - tLast >=250) {
+					mode = FH_ABSORB;
+					tLast = S->millis;
+					unitUpdated = false;
 				}
 			}
 		} else if (mode == FH_ABSORB) {
@@ -211,17 +254,17 @@ public:
 				exCmd = 0.25;
 				// Sets the desired leg angle to be facing downward plus a leg splay in the front
 				// and back. 
-				angDes = (isFront(i)) ?  -S->imu.euler.y + 0.75 : -S->imu.euler.y + 0.2;
-				extDes = (isFront(i)) ?  0.25 : 0.2;
+				angDes = (i==0 || i == 2) ?  -S->imu.euler.y - 0.1 : S->imu.euler.y + 0.4;
+				extDes = (i==0 || i == 2) ?  0.25 : 0.2;
 
 				limb[i].setGain(ANGLE, 2, 0.03);
 				limb[i].setPosition(ANGLE, angDes);
 
-				if(isFront(i)){
-					limb[i].setGain(EXTENSION, 150, 10);
+				if(i==0 || i == 2){
+					limb[i].setGain(EXTENSION, 150, 1);
 					limb[i].setPosition(EXTENSION, exCmd);
 				} else {
-					limb[i].setGain(EXTENSION, 150, 1);
+					limb[i].setGain(EXTENSION, 150, 3);
 					limb[i].setPosition(EXTENSION, exCmd);
 				}
 				
@@ -247,19 +290,16 @@ public:
 	}
 };
 
+FirstHop firstHop; // Declare instance of our behavior
 void debug() {
-	uint16_t adcArgs[2] = {32, 0};
-	// ioctl() with ADC_FILENO takes a uint16_t tuple for args, the first of which is the physical
-	// ADC pin, and the second of which is an output argument which is assigned the reading
-	ioctl(ADC_FILENO, IOCTL_CMD_ADC_READ, adcArgs);
-	printf("ADC reads %d\n", adcArgs[1]);
+	printf("isFront: %d, isRight: %d\n", firstHop.isFront(2),firstHop.isRight(2));
 }
 
 int main(int argc, char *argv[]) {
 	init(RobotParams_Type_MINITAUR, argc, argv);
 	for (int i = 0; i < P->joints_count; ++i)
 		P->joints[i].zero = motZeros[i]; //Add motor zeros from array at beginning of file
-	FirstHop firstHop; // Declare instance of our behavior
+	
 	// Add our behavior to the behavior vector (Walk and Bound are already there)
 	behaviors.push_back(&firstHop); 
 

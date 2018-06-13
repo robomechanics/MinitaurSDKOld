@@ -194,8 +194,8 @@ enum JointMode {
   OFF       = 0;//Disabled
   PWM       = 1;//PWM duty cycle (param in in [-1, 1])
   POSITION  = 2;//Stiff position control (param is position in radians)
-  DBG       = 3;//Debug mode
   TORQUE    = 4;//Torque specification mode (param is in N-m)
+  CURRENT   = 5;//Current mode (param is in A)
 }
 // Command message for a joint. We recommend the user use the Joint class, accessed through the global ::joint array instead of directly modifying these.
 message JointCmd {

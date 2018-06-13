@@ -20,6 +20,10 @@
  */
 class Joint {
 	const int i;
+	/**
+	 * @brief PWM or CURRENT
+	 */
+	JointMode openLoopMode = JointMode_PWM;
 public:
 	Joint(int _i) :
 			i(_i) {
@@ -83,8 +87,27 @@ public:
 	 * @param setpoint The PWM value between [-1, 1].
 	 */
 	inline void setOpenLoop(float setpoint) {
-		C->joints[i].mode = JointMode_PWM;
+		C->joints[i].mode = openLoopMode;
 		C->joints[i].setpoint = setpoint;
+	}
+	/**
+	 * @brief Set the Open Loop Mode (PWM or CURRENT)
+	 * 
+	 * @param mode JointMode_PWM or JointMode_CURRENT
+	 */
+	inline void setOpenLoopMode(JointMode mode)
+	{
+		if (mode == JointMode_PWM || mode == JointMode_CURRENT)
+			openLoopMode = mode;
+	}
+	/**
+	 * @brief Get the Open Loop Mode
+	 * 
+	 * @return JointMode 
+	 */
+	inline JointMode getOpenLoopMode()
+	{
+		return openLoopMode;
 	}
 	/**
      * @brief Sets the proportional and derivative gains for a PD controller of motor position. 
@@ -103,6 +126,12 @@ public:
 		C->joints[i].mode = JointMode_POSITION;
 		C->joints[i].setpoint = setpoint;
 	}
+	/**
+	 * @brief Set the unwrap offset (only relevant when gearRatio != 1)
+	 * 
+	 * @param unwrapOffset integer such as -2, -1, 0, 1, 2, ... (default 0 when initializing)
+	 */
+	void setUnwrapOffset(int unwrapOffset);
 };
 /**
  * @brief Globally accessible array of each Joint.

@@ -279,8 +279,8 @@ public:
 			oldVal = val;
 			return vel;
 		case DLPF_INTEGRATE:
-			val = smooth * oldVal + val / freq;
-			return val;
+			oldVal = interp1(oldVal + val / freq, oldVal, smooth);
+			return oldVal;
 		case DLPF_SMOOTH:
 		default:
 			oldVal = interp1(val, oldVal, smooth);

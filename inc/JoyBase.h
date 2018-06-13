@@ -37,12 +37,12 @@ protected:
 	float JOY_SPEED_SENS = 0.8;//m/s. 0.6 (low), 0.8 (medium), 1.5 (high)
 	float JOY_YAW_SENS = 1.2;//rad/s.
 
-	float JOY_SMOOTH_TWIST_LINEAR = 0.9997;
-	float JOY_SMOOTH_TWIST_ANGULAR = 0.99;
+	float JOY_SMOOTH_TWIST_LINEAR = 0.9;
+	float JOY_SMOOTH_TWIST_ANGULAR = 0.5;
 	float JOY_SMOOTH_TWIST_POSE_Z = 0.9;
 	// rate limiter, in units of /s; i.e. if twist.linear, it will be an acceleration limit in m/s^2
-	float JOY_RATE_LIMIT_TWIST_LINEAR = 0.5;
-	float JOY_RATE_LIMIT_TWIST_ANGULAR = 1;
+	float JOY_RATE_LIMIT_TWIST_LINEAR = 1.0;
+	float JOY_RATE_LIMIT_TWIST_ANGULAR = 2.0;
 
 public:
 	JoyType type = (JoyType)0;

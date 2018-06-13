@@ -36,14 +36,14 @@ struct UserData
 #pragma pack(pop)
 
 uint32_t ethRxUpdated;
+bool prevJoyRCEnabled = false;
+bool joyRCEnabled = true;
 
 class CommandOverEthernet : public Peripheral
 {
 public:
 	void begin()
 	{
-		// Command by behavior
-		C->mode = RobotCommand_Mode_BEHAVIOR;
 	}
 
 	// Our received behaviorCmd and user data
@@ -53,10 +53,15 @@ public:
 	void update()
 	{
 		// If no data, stop the robot
-		if(S->millis > ethRxUpdated + 5000) // If it's too long past last time we received a packet
+		if(S->millis > ethRxUpdated + 2000) // If it's too long past last time we received a packet
 		{
-			C->behavior.mode = 0;
-			C->behavior.twist.linear.x = 0;
+			// Stop and re-enable the joystick
+			if(!joyRCEnabled)
+			{
+				C->behavior.mode = 0;
+				C->behavior.twist.linear.x = 0;
+				joyRCEnabled = true;
+			}
 		}
 		else
 		{
@@ -65,12 +70,45 @@ public:
 			if(numRead == sizeof(BehaviorCmd))
 			{
 				// If sensible command
-				if(behaviorCmd.id < 100 && behaviorCmd.mode < 100)
+				if(behaviorCmd.id < 10 && behaviorCmd.mode < 10 && 
+				   behaviorCmd.twist.linear.x <= 1.0 && behaviorCmd.twist.linear.x >= -1.0 &&
+				   behaviorCmd.twist.angular.z <= 1.0 && behaviorCmd.twist.angular.z >= -1.0)
 				{
-					memcpy(&C->behavior, &behaviorCmd, sizeof(BehaviorCmd));
+					if(behaviorCmd.mode == 0)
+					{
+						// Enable RC joystick if message is blank
+						joyRCEnabled = true;
+					}
+					else
+					{
+						// Copy to behavior
+						memcpy(&C->behavior, &behaviorCmd, sizeof(BehaviorCmd));
+
+						// Disable RC joystick
+						joyRCEnabled = false;
+					}
 				}
 			}
 		}
+
+		// Disable or enable joystick once
+		if(joyRCEnabled && !prevJoyRCEnabled)
+		{
+			// Enable joystick input
+			JoyType joyType = JoyType_FRSKY_XSR;
+			ioctl(JOYSTICK_FILENO, IOCTL_CMD_JOYSTICK_SET_TYPE, &joyType);
+			printf("Enabling RC Joystick\n");
+			C->mode = RobotCommand_Mode_LIMB;
+		}
+		if(!joyRCEnabled && prevJoyRCEnabled)
+		{
+			// Disable joystick input
+			JoyType joyType = JoyType_NONE;
+			ioctl(JOYSTICK_FILENO, IOCTL_CMD_JOYSTICK_SET_TYPE, &joyType);
+			printf("Disabling RC Joystick\n");
+			C->mode = RobotCommand_Mode_BEHAVIOR;
+		}
+		prevJoyRCEnabled = joyRCEnabled;
 
 		// Create example user bytes to send back to computer
 		for (int i = 0; i < GRM_USER_DATA_SIZE; ++i)
@@ -107,8 +145,8 @@ int main(int argc, char *argv[])
 	// Only for Minitaur E
 	init(RobotParams_Type_MINITAUR_E, argc, argv);
 
-	// Disable joystick input
-	JoyType joyType = JoyType_NONE;
+	// Set joystick
+	JoyType joyType = JoyType_FRSKY_XSR;
 	ioctl(JOYSTICK_FILENO, IOCTL_CMD_JOYSTICK_SET_TYPE, &joyType);
 
 	// Create controller peripheral

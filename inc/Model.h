@@ -15,12 +15,22 @@
  * @return const MotorModelParams* 
  */
 const MotorModelParams *getMotorModelParams(MotorType type);
+
+/**
+ * @brief Get current -> torque from motor model
+ * 
+ * @param current Commanded current (A)
+ * @param params 
+ * @return float Torque (Nm)
+ */
+float modelTorqueFromCurrent(float current, const MotorModelParams *params);
+
 /**
  * @brief Get PWM -> torque using a motor model
  * 
- * @param pwm supplied PWM command
- * @param vel velocity of the motor
+ * @param pwm supplied PWM command [-1, 1]
+ * @param vel velocity of the motor (rad/s)
  * @param params 
- * @return float 
+ * @return float  Torque (Nm)
  */
 float modelTorqueFromPWM(float pwm, float vel, const MotorModelParams *params);

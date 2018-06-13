@@ -31,8 +31,6 @@ See main.py
 
 '''
 
-import numpy as np
-
 ''' ROS interface for ethernet example '''
 bROS = False
 try:
@@ -43,7 +41,7 @@ try:
 	from sensor_msgs.msg import Imu, BatteryState, JointState, Joy
 	from std_msgs.msg import UInt32
 	from nav_msgs.msg import Odometry
-	from geometry_msgs.msg import Twist
+	from geometry_msgs.msg import Twist, Pose
 	bROS = True
 except:
 	print('No ROS found; continuing.')
@@ -63,8 +61,10 @@ subs = []
 # Commands received from ROS
 linear_x = 0
 angular_z = 0
-behaviorId = 1
-behaviorMode = 1
+behaviorId = 0
+behaviorMode = 0
+height = 0
+lateral = 0
 
 def initROS():
 	global pubs, subs, robotname
@@ -84,10 +84,13 @@ def initROS():
 			rospy.Publisher(robotname + '/state/behaviorId', UInt32, queue_size=10),
 			rospy.Publisher(robotname + '/state/behaviorMode', UInt32, queue_size=10),
 			rospy.Publisher(robotname + '/state/joint', JointState, queue_size=10),
+			rospy.Publisher(robotname + '/state/jointURDF', JointState, queue_size=10),
 			rospy.Publisher(robotname + '/state/joystick', Joy, queue_size=10),
+			rospy.Publisher(robotname + '/state/pose', Pose, queue_size=10),
 		]
 		subs = [
 			rospy.Subscriber(robotname + '/command/cmd_vel', Twist, cmd_vel_callback),
+			rospy.Subscriber(robotname + '/command/joy', Joy, joy_callback),
 			rospy.Subscriber(robotname + '/command/behaviorId', UInt32, behaviorId_callback),
 			rospy.Subscriber(robotname + '/command/behaviorMode', UInt32, behaviorMode_callback),
 		]
@@ -96,24 +99,49 @@ def initROS():
 		rospy.init_node('ethernet_robot_control')
 
 def getCommands():
-	global linear_x, angular_z, behaviorId, behaviorMode
-	return linear_x, angular_z, behaviorId, behaviorMode
+	global linear_x, angular_z, behaviorId, behaviorMode, height, lateral
+	return linear_x, angular_z, behaviorId, behaviorMode, height, lateral
+
+def joy_callback(data):
+	global height, lateral
+	height = mapFromTo(data.axes[2], -1.0, 1.0, -1.0, 0.6)
+	lateral = mapFromTo(data.axes[3], -1.0, 1.0, -1.0, 1.0)
+	#rospy.loginfo("Received: %.2f Set: %.2f", data.axes[2], height)
 
 def cmd_vel_callback(data):
 	global linear_x, angular_z
-	rospy.loginfo("Received:\n %s", data)
+	#rospy.loginfo("Received:\n %s", data)
 	linear_x = data.linear.x
 	angular_z = data.angular.z
 
 def behaviorId_callback(data):
 	global behaviorId
-	rospy.loginfo("Received:\n %s", data)
+	#rospy.loginfo("Received:\n %s", data.data)
 	behaviorId = data.data
 
 def behaviorMode_callback(data):
 	global behaviorMode
-	rospy.loginfo("Received:\n %s", data)
+	#rospy.loginfo("Received:\n %s", data.data)
 	behaviorMode = data.data
+
+def minitaurFKForURDF(t0,t1):
+	l1 = 0.1
+	l2 = 0.2
+	meanAng = 0.5 * (t0 + t1)
+	diffAng = 0.5 * (t0 - t1)
+	if (meanAng < 0):
+		meanAng = meanAng + np.pi
+		diffAng = diffAng + np.pi
+	l1c = l1 * np.cos(meanAng)
+	l1s = l1 * np.sin(meanAng)
+	r = np.sqrt(l2 * l2 - l1s * l1s) - l1c
+	#print r
+	if r < 0:
+		r = -r
+	# r tested - looks right
+	# stupid law of cosines
+	phi = np.arccos((l2 * l2 + l1 * l1 - r * r)/ (2 * l1 * l2))
+	return np.pi - phi, np.pi + phi, r
 
 def publishState(state, ros_pub_dec, numDoF):
 	# Publish our robot state to ROS topics /robotname/state/* periodically
@@ -142,6 +170,16 @@ def publishState(state, ros_pub_dec, numDoF):
 		msg.orientation.z = quaternion[2]
 		msg.orientation.w = quaternion[3]
 		pubs[0].publish(msg)
+ 
+		# Construct /robotname/state/pose 
+		msg = Pose()
+		msg.orientation.x = quaternion[0]
+		msg.orientation.y = quaternion[1]
+		msg.orientation.z = quaternion[2]
+		msg.orientation.w = quaternion[3]
+		# TODO: Get height from robot state, have robot calculate it	
+		msg.position.z = 0.0
+		pubs[7].publish(msg)
 
 		# Construct /robotname/state/batteryState
 		msg = BatteryState()
@@ -149,15 +187,16 @@ def publishState(state, ros_pub_dec, numDoF):
 		msg.voltage = state['battery/voltage']
 		#num_cells = 8
 		num_cells = 4
-		if state['battery/cell_count'] > 0:
-			num_cells = state['battery/cell_count']
+		if 'battery/cell_voltage' in state:
+			if state['battery/cell_voltage'] > 0:
+				num_cells = len(state['battery/cell_voltage'])
 		def percentage(total_voltage, num_cells):
 			# Linearly interpolate charge from voltage 
 			# https://gitlab.com/ghostrobotics/SDK/uploads/6878144fa0e408c91e481c2278215579/image.png
 			charges =  [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 			voltages = [3.2, 3.5, 3.6, 3.65, 3.8, 4.2]
 			return np.interp(total_voltage / num_cells, voltages, charges)
-		if msg.percentage < 0:
+		if msg.percentage <= 0:
 			msg.percentage = percentage(msg.voltage, num_cells)
 		pubs[1].publish(msg)
 
@@ -177,18 +216,37 @@ def publishState(state, ros_pub_dec, numDoF):
 		msg.position = []
 		msg.velocity = []
 		msg.effort = []
-		for j in range(numDoF):
+		for j in range(len(state['joint/position'])):
 			msg.name.append(str(j))
 			msg.position.append(state['joint/position'][j])
 			msg.velocity.append(state['joint/velocity'][j])
 			msg.effort.append(state['joint/effort'][j])
 		pubs[4].publish(msg)
 
+	        # Translate for URDF in NGR
+		vision60 = False
+		if(vision60):
+			for i in range(8, 2):
+				msg.position[i] += msg.position[i-1];
+				msg.velocity[i] += msg.velocity[i-1];
+		else:
+			# other URDF
+			# for URDF of Minitaur FIXME use the class I put in ethernet.py for RobotType
+			msg.position.extend([0, 0, 0, 0, 0, 0, 0, 0])
+			msg.position[11], msg.position[10], r = minitaurFKForURDF(msg.position[0], msg.position[1])
+			msg.position[14], msg.position[15], r = minitaurFKForURDF(msg.position[2], msg.position[3])
+			msg.position[9], msg.position[8], r = minitaurFKForURDF(msg.position[4], msg.position[5])
+			msg.position[13], msg.position[12], r = minitaurFKForURDF(msg.position[6], msg.position[7])
+			# other URDF problems (order important)
+			for j in range(4):
+				msg.position[j] = -msg.position[j]
+		pubs[5].publish(msg)
+
 		# Construct /robotname/state/joystick
 		msg = Joy()
 		msg.axes = state['joy/axes']
 		msg.buttons = state['joy/buttons']
-		pubs[5].publish(msg)
+		pubs[6].publish(msg)
 
 		# Current robot twist received back from robot
 		#state['twist/linear']
