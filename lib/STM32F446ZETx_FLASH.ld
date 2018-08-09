@@ -24,7 +24,7 @@
 **  permitted. Ac6 permit registered System Workbench for MCU users the
 **  rights to distribute the assembled, compiled & linked contents of this
 **  file as part of an application binary file, provided that it is built
-**  using the System Workbench for MCU toolchain.
+**  ufastsing the System Workbench for MCU toolchain.
 **
 *****************************************************************************
 */

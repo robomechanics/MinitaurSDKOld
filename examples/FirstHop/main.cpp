@@ -10,10 +10,12 @@
 #include <Motor.h>
 #include <ReorientableBehavior.h>
 
+#include <string>
+#include <iostream>
+
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
-// const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[8] = {2.570, 3.167, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+const float motZeros[8] = {2.570, 2.036, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
@@ -25,6 +27,9 @@ enum FHMode
 	FH_LEAP,
 	FH_LAND
 };
+
+char myData[32];
+float *myData_buf = (float*)myData;
 
 /**
  * See "Getting started with the FirstHop behavior" in the documentation for a walk-through
@@ -58,9 +63,10 @@ public:
 
 	void begin()
 	{
+		ioctl(LOGGER_FILENO, 0); // do not log
 		mode = FH_STAND;			// Start behavior in STAND mode
 		tLast = S->millis;		// Record the system time @ this transition
-		exCmd = 0.14;					//Set extension command to be 0.14m, the current value of extension
+		exCmd = 0.14;					// Set extension command to be 0.14m, the current value of extension
 		lastExtension = 0.14; // Record the previous loop's extension; it should be 0.14m
 	}
 
@@ -71,12 +77,13 @@ public:
 		C->mode = RobotCommand_Mode_LIMB;
 		if (mode == FH_SIT)
 		{
+			ioctl(LOGGER_FILENO, 0); // do not log
 			for (int i = 0; i < P->limbs_count; ++i)
 			{
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 				// Splay angle for the front/rear legs (outward splay due to fore-displacement of front legs
 				// and aft-displacement of rear legs)
-				// The pitch angle (S->imu.euler.y) is subtracted since we want to the set the *absolute* leg angle
+				// The pitch angle (S->imu.euler.y) is subtracted fastsince we want to the set the *absolute* leg angle
 				// and limb[i].setPosition(ANGLE, *) will set the angle of the leg *relative* to the robot body
 				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
 				limb[i].setGain(ANGLE, 0.8, .03);
@@ -89,8 +96,9 @@ public:
 		}
 		else if (mode == FH_STAND)
 		{
+			ioctl(LOGGER_FILENO, 0); // do not log
 			// C->behavior.pose.position.z can be commanded from the joystick (the left vertical axis by default)
-			// We map this using map() to the desired leg extension, so that the joystick can be used to raise
+			// We map this ufastsing map() to the desired leg extension, so that the joystick can be used to raise
 			// and lower the standing height between 0.12 and 0.25 m
 			extDes = map(C->behavior.pose.position.z, -1.0, 1.0, 0.14, 0.25);
 			//If the commanded position is significantly lower than actual position,
@@ -139,6 +147,7 @@ public:
 		}
 		else if (mode == FH_LEAP)
 		{
+			ioctl(LOGGER_FILENO, 0); // do not log
 			for (int i = 0; i < P->limbs_count; ++i)
 			{
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
@@ -158,10 +167,10 @@ public:
 		}
 		else if (mode == FH_LAND)
 		{
+			ioctl(LOGGER_FILENO, 1); // log here
 
 			for (int i = 0; i < P->limbs_count; ++i)
 			{
-
 				// This updates the parameters struct to switch back into meters as its units.
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 				// Sets the commanded length for landing to 0.25 meters
@@ -203,11 +212,14 @@ public:
 
 void debug()
 {
-	uint16_t adcArgs[2] = {32, 0};
-	// ioctl() with ADC_FILENO takes a uint16_t tuple for args, the first of which is the physical
-	// ADC pin, and the second of which is an output argument which is assigned the reading
-	ioctl(ADC_FILENO, IOCTL_CMD_ADC_READ, adcArgs);
-	printf("%lu\t%lu\tADC reads %d\n", S->millis, clockTimeUS, adcArgs[1]);
+	myData_buf[0] = joint[1].getPosition();
+	myData_buf[1] = joint[0].getPosition();
+	myData_buf[6] = limb[0].getForce(EXTENSION);
+	myData_buf[2] = limb[1].getForce(EXTENSION);
+	myData_buf[3] = limb[2].getForce(EXTENSION);
+	myData_buf[7] = limb[3].getForce(EXTENSION);
+
+	write(LOGGER_FILENO, myData, 32);
 }
 
 int main(int argc, char *argv[])
@@ -223,6 +235,8 @@ int main(int argc, char *argv[])
 #else
 #error "Define robot type in preprocessor"
 #endif
+
+  setDebugRate(100);
 
 	// Declare instance of our behavior
 	FirstHop firstHop;

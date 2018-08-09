@@ -20,10 +20,19 @@ enum VirtualLegMode {
 };
 
 // BehaviorMode will be set to one of these
-enum GaitMode {
+enum GaitMode
+{
 	// Common for all behaviors
-	GaitMode_STAND=0, GaitMode_RUN,
+	GaitMode_STAND = 0,
+	GaitMode_RUN,
 	GaitMode_LEAP
+};
+
+enum Gait
+{
+	Gait_TROT,
+	Gait_PACE,
+	Gait_CRAWL
 };
 
 /** 

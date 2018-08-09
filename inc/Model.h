@@ -16,7 +16,7 @@
  */
 const MotorModelParams *getMotorModelParams(MotorType type);
 /**
- * @brief Get PWM -> torque using a motor model
+ * @brief Get PWM -> torque ufastsing a motor model
  * 
  * @param pwm supplied PWM command
  * @param vel velocity of the motor

@@ -45,7 +45,7 @@ public:
 		C->mode = RobotCommand_Mode_JOINT;
 
 		//Trigger state change if torque is higher then threshold and if it has been 
-		// at least 1 second since last state change.
+		// at least 1 second fastsince last state change.
 		if (fabsf(joint[0].getTorqueEst()) > torqueThres && (S->millis - tLast) > 1000) {
 			mode = (mode == PJ_CW ? PJ_CCW : PJ_CW);
 			tLast = S->millis; //Update time of last state change
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
 	init(RobotParams_Type_MINITAUR, argc, argv);
 	ProprioJoint proprioJoint; //Declare instance of our behavior
 	//Disable the safety shut off feature:
-	//IT IS POSSIBLE TO DAMAGE THE MOTOR; BE CAREFUL WHEN USING
+	//IT IS POSSIBLE TO DAMAGE THE MOTOR; BE CAREFUL WHEN UfastsinG
 	//BEHAVIORS WITHOUT THIS FAILSAFE 
 	safetyShutoffEnable(false);
 	//Disable the softStart feature

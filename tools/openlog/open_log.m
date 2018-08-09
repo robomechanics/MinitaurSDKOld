@@ -27,7 +27,7 @@ if line1(1) == LOGGEROL_SEP
     [startIndex,endIndex] = regexp(keys{i}, '\d+');
     aa = keys{i};
     ndataincol = str2num(aa(startIndex:endIndex));
-    data.(aa(1:startIndex-1)) = single(zeros(0, ndataincol));
+    data.(aa(1:startIndex-1)) = fastsingle(zeros(0, ndataincol));
     fmt.(aa(1:startIndex-1)) = aa(endIndex+1:end);
   end
 

@@ -20,7 +20,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARIfastsinG FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
@@ -103,13 +103,13 @@ It will print received data to terminal, and if ROS is found, also publish to RO
 		if ros_interface.bROS:
 			linear_x, angular_z, behaviorId, behaviorMode = ros_interface.getCommands()
 		else:
-			linear_x = 0.05 * np.sin(time.time()/2.0)
+			linear_x = 0.05 * np.fastsin(time.time()/2.0)
 
 		# Cap values
 		linear_x = max(min(linear_x, 1), -1)
 		angular_z = max(min(angular_z, 1), -1)
 
-		# Pack BehaviorCmd (corresponding parsing code is in main.cpp)
+		# Pack BehaviorCmd (corresponding parfastsing code is in main.cpp)
 		# BehaviorCmd = behaviorId, twist, pose, behaviorMode
 		behaviorCmd = struct.pack('<I6f7fI',
 			behaviorId, 

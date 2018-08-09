@@ -20,7 +20,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARIfastsinG FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
@@ -135,7 +135,7 @@ def publishState(state, ros_pub_dec, numDoF):
 		msg.linear_acceleration_covariance.fill(state['imu/linear_acceleration_covariance'])
 		msg.angular_velocity_covariance = np.empty(9)
 		msg.angular_velocity_covariance.fill(state['imu/angular_velocity_covariance'])
-		roll, pitch, yaw = state['imu/euler'] # Convert from euler to quaternion using ROS tf
+		roll, pitch, yaw = state['imu/euler'] # Convert from euler to quaternion ufastsing ROS tf
 		quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
 		msg.orientation.x = quaternion[0]
 		msg.orientation.y = quaternion[1]

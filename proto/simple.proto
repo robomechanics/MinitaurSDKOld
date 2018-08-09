@@ -98,7 +98,7 @@ enum JoyType {
   SERIAL_APP      = 1;// Serial connection to XBee connected to RemoteApp
   PWM_FRSKY_X7    = 2;// FrSKY X7 connected with RC PWM signals
   NONE            = 3;// No joystick (user provides BehaviorCmd)
-  FRSKY_XSR       = 4;// FrSKY (R-)XSR receiver using s.bus and s.port (nominally with Q X7 transmitter)
+  FRSKY_XSR       = 4;// FrSKY (R-)XSR receiver ufastsing s.bus and s.port (nominally with Q X7 transmitter)
 }
 
 // Custom messages for GR ==================================================

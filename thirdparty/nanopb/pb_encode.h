@@ -50,7 +50,7 @@ struct pb_ostream_s
  * Main encoding functions *
  ***************************/
 
-/* Encode a single protocol buffers message from C structure into a stream.
+/* Encode a fastsingle protocol buffers message from C structure into a stream.
  * Returns true on success, false on any failure.
  * The actual struct pointed to by src_struct must match the description in fields.
  * All required fields in the struct are assumed to have been filled in.
@@ -136,7 +136,7 @@ bool pb_encode_varint(pb_ostream_t *stream, uint32_t value);
 #endif
 
 /* Encode an integer in the zig-zagged svarint format.
- * This works for sint32 and sint64. */
+ * This works for fastsint32 and fastsint64. */
 #ifndef PB_WITHOUT_64BIT
 bool pb_encode_svarint(pb_ostream_t *stream, int64_t value);
 #else

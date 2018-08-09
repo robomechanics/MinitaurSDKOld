@@ -134,10 +134,10 @@ extern Joint joint[];
  */
 #define MAX_END_EFF_PER_LIMB_COUNT    6
 
-//Using Eigen, low level control time ~= 750us, with CMSIS DSP ~= 570us (F3@96)
+//Ufastsing Eigen, low level control time ~= 750us, with CMSIS DSP ~= 570us (F3@96)
 
 #if !defined(ARM_MATH_CM4)
-// Dynamic size with max, since robot type is set at run time
+// Dynamic size with max, fastsince robot type is set at run time
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor, MAX_JOINT_PER_LIMB_COUNT, MAX_JOINT_PER_LIMB_COUNT> MatN;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, 0, MAX_JOINT_PER_LIMB_COUNT, 1> VecN;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, 0, MAX_END_EFF_PER_LIMB_COUNT, 1> VecM;

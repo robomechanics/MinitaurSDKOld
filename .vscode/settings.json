@@ -1,0 +1,28 @@
+{
+  "files.associations": {
+    "typeinfo": "cpp",
+    "array": "cpp",
+    "vector": "cpp",
+    "slist": "cpp",
+    "*.tcc": "cpp",
+    "string": "cpp",
+    "chrono": "cpp",
+    "unordered_map": "cpp",
+    "initializer_list": "cpp",
+    "functional": "cpp",
+    "type_traits": "cpp",
+    "tuple": "cpp",
+    "utility": "cpp",
+    "deque": "cpp",
+    "list": "cpp",
+    "cmath": "cpp",
+    "complex": "cpp",
+    "cstdlib": "cpp",
+    "valarray": "cpp",
+    "bitset": "cpp",
+    "ratio": "cpp",
+    "system_error": "cpp",
+    "*.ipp": "cpp"
+  },
+  "C_Cpp.dimInactiveRegions": false
+}

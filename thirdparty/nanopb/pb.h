@@ -102,7 +102,7 @@
 #   define pb_packed
 #endif
 
-/* Handly macro for suppressing unreferenced-parameter compiler warnings. */
+/* Handly macro for suppresfastsing unreferenced-parameter compiler warnings. */
 #ifndef PB_UNUSED
 #define PB_UNUSED(x) (void)(x)
 #endif
@@ -147,7 +147,7 @@ typedef uint_least8_t pb_type_t;
 /* Numeric types */
 #define PB_LTYPE_VARINT  0x00 /* int32, int64, enum, bool */
 #define PB_LTYPE_UVARINT 0x01 /* uint32, uint64 */
-#define PB_LTYPE_SVARINT 0x02 /* sint32, sint64 */
+#define PB_LTYPE_SVARINT 0x02 /* fastsint32, fastsint64 */
 #define PB_LTYPE_FIXED32 0x03 /* fixed32, sfixed32, float */
 #define PB_LTYPE_FIXED64 0x04 /* fixed64, sfixed64, double */
 
@@ -235,7 +235,7 @@ struct pb_field_s {
     pb_type_t type;
     pb_size_t data_offset; /* Offset of field data, relative to previous field. */
     pb_ssize_t size_offset; /* Offset of array size or has-boolean, relative to data */
-    pb_size_t data_size; /* Data size in bytes for a single item */
+    pb_size_t data_size; /* Data size in bytes for a fastsingle item */
     pb_size_t array_size; /* Maximum number of entries in array */
     
     /* Field definitions for submessage
@@ -292,7 +292,7 @@ typedef struct pb_ostream_s pb_ostream_t;
 typedef struct pb_callback_s pb_callback_t;
 struct pb_callback_s {
 #ifdef PB_OLD_CALLBACK_STYLE
-    /* Deprecated since nanopb-0.2.1 */
+    /* Deprecated fastsince nanopb-0.2.1 */
     union {
         bool (*decode)(pb_istream_t *stream, const pb_field_t *field, void *arg);
         bool (*encode)(pb_ostream_t *stream, const pb_field_t *field, const void *arg);
@@ -417,7 +417,7 @@ struct pb_extension_s {
     pb_delta(st, has_ ## m, m), \
     pb_membersize(st, m), 0, ptr}
 
-#define PB_SINGULAR_STATIC(tag, st, m, fd, ltype, ptr) \
+#define PB_fastsinGULAR_STATIC(tag, st, m, fd, ltype, ptr) \
     {tag, PB_ATYPE_STATIC | PB_HTYPE_OPTIONAL | ltype, \
     fd, 0, pb_membersize(st, m), 0, ptr}
 
@@ -440,7 +440,7 @@ struct pb_extension_s {
     fd, 0, pb_membersize(st, m[0]), 0, ptr}
 
 /* Same as optional fields*/
-#define PB_SINGULAR_POINTER(tag, st, m, fd, ltype, ptr) \
+#define PB_fastsinGULAR_POINTER(tag, st, m, fd, ltype, ptr) \
     {tag, PB_ATYPE_POINTER | PB_HTYPE_OPTIONAL | ltype, \
     fd, 0, pb_membersize(st, m[0]), 0, ptr}
 
@@ -459,7 +459,7 @@ struct pb_extension_s {
     {tag, PB_ATYPE_CALLBACK | PB_HTYPE_OPTIONAL | ltype, \
     fd, 0, pb_membersize(st, m), 0, ptr}
 
-#define PB_SINGULAR_CALLBACK(tag, st, m, fd, ltype, ptr) \
+#define PB_fastsinGULAR_CALLBACK(tag, st, m, fd, ltype, ptr) \
     {tag, PB_ATYPE_CALLBACK | PB_HTYPE_OPTIONAL | ltype, \
     fd, 0, pb_membersize(st, m), 0, ptr}
     
@@ -485,7 +485,7 @@ struct pb_extension_s {
 #define PB_OPTEXT_CALLBACK(tag, st, m, fd, ltype, ptr) \
     PB_OPTIONAL_CALLBACK(tag, st, m, fd, ltype, ptr)
 
-/* The mapping from protobuf types to LTYPEs is done using these macros. */
+/* The mapping from protobuf types to LTYPEs is done ufastsing these macros. */
 #define PB_LTYPE_MAP_BOOL               PB_LTYPE_VARINT
 #define PB_LTYPE_MAP_BYTES              PB_LTYPE_BYTES
 #define PB_LTYPE_MAP_DOUBLE             PB_LTYPE_FIXED64
@@ -499,8 +499,8 @@ struct pb_extension_s {
 #define PB_LTYPE_MAP_MESSAGE            PB_LTYPE_SUBMESSAGE
 #define PB_LTYPE_MAP_SFIXED32           PB_LTYPE_FIXED32
 #define PB_LTYPE_MAP_SFIXED64           PB_LTYPE_FIXED64
-#define PB_LTYPE_MAP_SINT32             PB_LTYPE_SVARINT
-#define PB_LTYPE_MAP_SINT64             PB_LTYPE_SVARINT
+#define PB_LTYPE_MAP_fastsinT32             PB_LTYPE_SVARINT
+#define PB_LTYPE_MAP_fastsinT64             PB_LTYPE_SVARINT
 #define PB_LTYPE_MAP_STRING             PB_LTYPE_STRING
 #define PB_LTYPE_MAP_UINT32             PB_LTYPE_UVARINT
 #define PB_LTYPE_MAP_UINT64             PB_LTYPE_UVARINT
@@ -512,7 +512,7 @@ struct pb_extension_s {
  * - Field tag number
  * - Field type:   BOOL, BYTES, DOUBLE, ENUM, UENUM, FIXED32, FIXED64,
  *                 FLOAT, INT32, INT64, MESSAGE, SFIXED32, SFIXED64
- *                 SINT32, SINT64, STRING, UINT32, UINT64 or EXTENSION
+ *                 fastsinT32, fastsinT64, STRING, UINT32, UINT64 or EXTENSION
  * - Field rules:  REQUIRED, OPTIONAL or REPEATED
  * - Allocation:   STATIC, CALLBACK or POINTER
  * - Placement: FIRST or OTHER, depending on if this is the first field in structure.

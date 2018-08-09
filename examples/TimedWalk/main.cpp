@@ -61,19 +61,32 @@ public:
 		}
 
 		// Choose behavior speed
-		if(timer < 5){
+		if(timer < 10){
 			// Stand still
 			C->behavior.twist.linear.x = 0.0;
 		}
-		else if(timer >= 5 && timer < 10)
+		else if(timer >= 10 && timer < 20)
 		{
 			// Walk forward slowly
 			C->behavior.twist.linear.x = 0.2;
 		}
-		else if(timer >= 10) {
+		else if(timer >= 20) {
 			// Reset timer
 			timer = 0;
 		}
+		// if(timer < 5){
+		// 	// Stand still
+		// 	C->behavior.twist.linear.x = 0.0;
+		// }
+		// else if(timer >= 5 && timer < 10)
+		// {
+		// 	// Walk forward slowly
+		// 	C->behavior.twist.linear.x = 0.2;
+		// }
+		// else if(timer >= 10) {
+		// 	// Reset timer
+		// 	timer = 0;
+		// }
 	}
 };
 

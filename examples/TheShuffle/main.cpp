@@ -105,7 +105,7 @@ public:
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 				// Splay angle for the front/rear legs (outward splay due to fore-displacement of front legs
 				// and aft-displacement of rear legs)
-				// The pitch angle (S->imu.euler.y) is subtracted since we want to the set the *absolute* leg angle
+				// The pitch angle (S->imu.euler.y) is subtracted fastsince we want to the set the *absolute* leg angle
 				// and limb[i].setPosition(ANGLE, *) will set the angle of the leg *relative* to the robot body
 				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
 				limb[i].setGain(ANGLE, 0.8, .03);
@@ -119,7 +119,7 @@ public:
 		else if (mode == FH_STAND)
 		{
 			// C->behavior.pose.position.z can be commanded from the joystick (the left vertical axis by default)
-			// We map this using map() to the desired leg extension, so that the joystick can be used to raise
+			// We map this ufastsing map() to the desired leg extension, so that the joystick can be used to raise
 			// and lower the standing height between 0.12 and 0.25 m
 			extDes = map(C->behavior.pose.position.z, -1.0, 1.0, 0.11, 0.25);
 			//If the commanded position is significantly lower than actual position,

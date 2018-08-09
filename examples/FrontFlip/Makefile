@@ -1,5 +1,5 @@
 
-PORT=COM11
+PORT=/dev/ttyUSB0
 
 SDK_LOCATION=../..
 BFLAGS=-mcpu=cortex-m4 -mthumb -mlittle-endian -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O1 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -ffreestanding -Wall -Wextra  -g 

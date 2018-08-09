@@ -17,7 +17,7 @@ const float zeros[6] = {2.94, 4.032, -1.84, -2.08, 2.74, -1.79}; //Joint Zeros
 const float dir[6] = {-1, -1, -1, 1, 1, 1}; // The direction of each motor in the body frame
 //State-machine like enum with two states: running and standing
 enum HGMode {
-	HG_STAND=0, HG_RUN 
+	HG_STAND=0, HG_RUN
 };
 
 
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	C->mode = RobotCommand_Mode_JOINT; // Only joint control
 
 	//We declare three different definitions of the hexapod gait class:
-	HexapodGait quadTrot(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, true); // Quadruped Trot : Front left-back right are a pair as are front right and back left	
+	HexapodGait quadTrot(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, true); // Quadruped Trot : Front left-back right are a pair as are front right and back left
 	HexapodGait quadBound(0.5, 0.0, 0.0, 0.5, 0.0, 0.0, true); // Quadruped Bound : Front legs and back legs are in pairs
 	HexapodGait hexTripod(0.5, 0.0, 0.5, 0.0, 0.5, 0.0); // Alternating tripod : Front and back legs on one side, and the middle leg from the other move together	
 	// We don't need any of the Minitaur settings

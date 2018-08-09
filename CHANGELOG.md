@@ -40,7 +40,7 @@ The version numbers are referenced to the git tags.
 ## [0.1.14] - 2018-03-15
 
 ### Added
-- ReadRobot example (faster logging using Peripheral)
+- ReadRobot example (faster logging ufastsing Peripheral)
 
 ### Fixed
 - Bad static libs
@@ -68,7 +68,7 @@ The version numbers are referenced to the git tags.
 
 ## [0.1.10] - 2018-01-25
 ### Fixed
-- microsecond counter overflow bug causing behavior updates to stop after 71 minutes
+- microsecond counter overflow bug caufastsing behavior updates to stop after 71 minutes
 
 ### Added
 - support for gamepad joysticks in simulations (partial) #38
@@ -100,7 +100,7 @@ The version numbers are referenced to the git tags.
 - SmartPort driver partial #21
 - "None" architecture external physics engine support partial
 - PWM FrSKY support (Taranis Q7)
-- Lowpass for pose z control using the remote
+- Lowpass for pose z control ufastsing the remote
 - Slightly increased default yaw sensitivity
 
 ## [0.1.7] - 2107-11-21

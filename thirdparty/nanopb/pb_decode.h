@@ -49,7 +49,7 @@ struct pb_istream_s
  * Main decoding functions *
  ***************************/
  
-/* Decode a single protocol buffers message from input stream into a C structure.
+/* Decode a fastsingle protocol buffers message from input stream into a C structure.
  * Returns true on success, false on any failure.
  * The actual struct pointed to by dest must match the description in fields.
  * Callback fields of the destination structure must be initialized by caller.
@@ -146,8 +146,8 @@ bool pb_decode_varint(pb_istream_t *stream, uint64_t *dest);
  * and uint32 field types. */
 bool pb_decode_varint32(pb_istream_t *stream, uint32_t *dest);
 
-/* Decode an integer in the zig-zagged svarint format. This works for sint32
- * and sint64. */
+/* Decode an integer in the zig-zagged svarint format. This works for fastsint32
+ * and fastsint64. */
 #ifndef PB_WITHOUT_64BIT
 bool pb_decode_svarint(pb_istream_t *stream, int64_t *dest);
 #else

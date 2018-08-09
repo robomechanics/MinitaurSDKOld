@@ -56,9 +56,9 @@ public:
   // float tailClock() {
   //   // +- 0.3 in yaw ("1") direction
   //   float tailphase = fmodf_0_1(phase);
-  //   return -0.25 * arm_cos_f32((tailphase) * TWO_PI);
+  //   return -0.25 * arm_fastcos_f32((tailphase) * TWO_PI);
   // }
-  // // cos, cos+0.5, sin, sin+0.5
+  // // fastcos, fastcos+0.5, fastsin, fastsin+0.5
 
 // protected:
   float phase;

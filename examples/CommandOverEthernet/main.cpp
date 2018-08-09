@@ -18,7 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARIfastsinG FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
@@ -86,7 +86,7 @@ public:
 CommandOverEthernet commandRobot;
 
 // You can optionally send back a fully custom state packet by replacing the state copy callback.
-// If you do this, don't write user bytes using the example user bytes above.
+// If you do this, don't write user bytes ufastsing the example user bytes above.
 uint16_t myStateCopyCallback(GRMHeader *hdr, uint8_t *buf)
 {
 	hdr->version = 123;

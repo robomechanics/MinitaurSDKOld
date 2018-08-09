@@ -34,7 +34,7 @@ public:
 
 		// Calculate leg angle and extension values:
 		// C->behavior.pose.position.z can be commanded from the joystick with the left vertical axis.
-		// We map this using map() to the desired leg extension, so that the joystick can be used to raise
+		// We map this ufastsing map() to the desired leg extension, so that the joystick can be used to raise
 		// and lower the standing height between 0.14 and 0.25 m.
 		float extension = map(C->behavior.pose.position.z, -1.0, 1.0, 0.14, 0.25);
 

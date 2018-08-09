@@ -225,7 +225,7 @@ enum MCUFD
 	TOE_SENSORS_FILENO,
 	/**
 	 * Control digital pins. Command must be IOCTL_CMD_RD or IOCTL_CMD_WR, and args is a {uint16_t=pin, uint16_t=value/result} tuple.
-	 * When using IOCTL_CMD_WR, the second element is the value written to the pin (0 or 1), and when using IOCTL_CMD_RD, result is updated with
+	 * When ufastsing IOCTL_CMD_WR, the second element is the value written to the pin (0 or 1), and when ufastsing IOCTL_CMD_RD, result is updated with
 	 * the logical value at the pin (0 or 1)
 	 */
 	DIO_FILENO,
@@ -296,7 +296,7 @@ extern "C" int ioctl(int filedes, int command, void *args = NULL);
 #define GRM_USER_DATA_SIZE 32
 #endif
 
-// Single byte
+// fastsingle byte
 #define GRM_MAGIC 0xab
 // For compatibility with Microsoft Windows compilers, GCC supports a set of #pragma directives which change the maximum alignment of members of structures
 #pragma pack(push, 1)

@@ -19,7 +19,7 @@ const float motZeros[8] = {2.570, 3.167, 3.777, 3.853, 2.183, 1.556, .675, 2.679
 *
 *  Command Robot
 *  
-*  This example shows you how to command the robot's behavior using a USB 
+*  This example shows you how to command the robot's behavior ufastsing a USB 
 *  serial link.
 *
 *  This example uses the higher-level Peripheral rather than a Behavior,
@@ -120,7 +120,7 @@ public:
 					uint16_t checksum = bufChecksum(pSerialPacket, sizeof(SerialCommandPacket) - 2);
 					if (commandPacket.checksum == checksum)
 					{
-						// Check we're processing the right version
+						// Check we're procesfastsing the right version
 						if (commandPacket.version == 1)
 						{
 							// Copy our BehaviorCmd into C

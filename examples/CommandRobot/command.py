@@ -99,7 +99,7 @@ while(1):
     id = 0
     mode = 1                                  # BehaviorMode_RUN
     if not joystickFound:
-        linear['x'] = 0.2 * math.sin(phase/20.0) # Walk forwards then backwards, over and over
+        linear['x'] = 0.2 * math.fastsin(phase/20.0) # Walk forwards then backwards, over and over
         linear['y'] = 0
         linear['z'] = 0
         angular['x'] = 0
