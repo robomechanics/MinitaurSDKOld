@@ -3,12 +3,12 @@
 # Project page: http://tuxotronic.org/wiki/projects/stm32loader
 #
 # MODIFIED to add:
-# * Input flushing and timing tuning in initChip() so that it works in spite of 
+# * Input flushing and timing tuning in initChip() so that it works in spite of
 #   large amounts of serial RX from the microcontroller
 # * EEPROM saving option
 # Author: Avik De <avikde@gmail.com>
 # Project page: https://github.com/avikde/koduino
-# 
+#
 # This file is part of stm32loader.
 #
 # stm32loader is free software; you can redistribute it and/or modify it under
@@ -26,6 +26,7 @@
 # <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import sys, getopt
 import serial
@@ -38,11 +39,31 @@ import subprocess
 import sys
 import struct
 
+if sys.version_info.major == 3:
+    chr = lambda x: bytes([x])
+
 try:
-  from progressbar import *
+  import progressbar
   usepbar = 1
 except:
   usepbar = 0
+
+if usepbar:
+	from progressbar import Percentage, ETA, Bar
+	if sys.version_info.major == 3:
+		# wrapper for difference between progressbar (python2)
+		# and progressbar2 (python3)
+		class ProgressBar(progressbar.ProgressBar):
+			def __init__(self, **kwargs):
+				if 'maxval' in kwargs:
+					kwargs['max_value'] = kwargs.pop('maxval')
+				super().__init__(**kwargs)
+			@property
+			def maxval(self):
+				return self.max_value
+
+	elif sys.version_info.major == 2:
+		from progressbar import ProgressBar
 
 # Verbose level
 QUIET = 5
@@ -157,14 +178,16 @@ class CommandInterface(object):
         self.reset()
 
       self.sp.flushInput()
-      self.sp.write('\x7f')
+      #python2/3 with unicode literals
+      self.sp.write(b'\x7f')
 
       got = self.sp.read()
       # if got:
         # sys.stdout.write(got)
       # The chip will ACK a sync the very first time and
       # NACK it every time afterwards
-      if got and got in '\x79\x1f':
+      #python2/3 with unicode_literals
+      if got and got in b'\x79\x1f':
         # Synced up
         return
 
@@ -193,7 +216,7 @@ class CommandInterface(object):
       mdebug(10, "*** Get command");
       len = ord(self.sp.read())
       version = ord(self.sp.read())
-      mdebug(10, "    Bootloader version: "+hex(version))
+      #mdebug(10, "    Bootloader version: "+hex(version))
       dat = map(lambda c: hex(ord(c)), self.sp.read(len))
       mdebug(10, "    Available commands: "+str(dat))
       self._wait_for_ack("0x00 end")
@@ -207,7 +230,7 @@ class CommandInterface(object):
       version = ord(self.sp.read())
       self.sp.read(2)
       self._wait_for_ack("0x01 end")
-      mdebug(10, "    Bootloader version: "+hex(version))
+      #mdebug(10, "    Bootloader version: "+hex(version))
       return version
     else:
       raise CmdException("GetVersion (0x01) failed")
@@ -305,7 +328,7 @@ class CommandInterface(object):
       mdebug(10, "*** Extended erase memory command")
       if sectors is None:
         # Global mass erase
-        mdebug(5, "Global mass erase; this may take a while")
+        #mdebug(5, "Global mass erase; this may take a while")
         self.sp.write(chr(0xFF))
         self.sp.write(chr(0xFF))
         # Checksum
@@ -325,7 +348,7 @@ class CommandInterface(object):
           crc = crc ^ ord(sector_bytes[i])
           self.sp.write(sector_bytes[i])
         self.sp.write(chr(crc))
-        self._wait_for_ack("0x44 sector erase failed", 
+        self._wait_for_ack("0x44 sector erase failed",
                     timeout=self.GLOBAL_ERASE_TIMEOUT_SECONDS)
         mdebug(10, "    Sector extended erase memory done")
     else:
@@ -403,11 +426,11 @@ class CommandInterface(object):
   def writeMemory(self, addr, data):
     lng = len(data)
 
-    mdebug(5, "Writing %(lng)d bytes to start address 0x%(addr)X" %
-         { 'lng': lng, 'addr': addr})
+    #mdebug(5, "Writing %(lng)d bytes to start address 0x%(addr)X" %
+    #     { 'lng': lng, 'addr': addr})
 
     if usepbar:
-      widgets = ['Writing: ', Percentage(),' ', ETA(), ' ', Bar()]
+      widgets = ['', Percentage(),' ', ETA(), ' ', Bar()]
       pbar = ProgressBar(widgets=widgets, maxval=lng, term_width=79).start()
 
     offs = 0
@@ -416,8 +439,8 @@ class CommandInterface(object):
         pbar.update(pbar.maxval-lng)
         sys.stdout.flush()
         sys.stderr.flush()
-      else:
-        mdebug(5, "Write %(len)d bytes at 0x%(addr)X" % {'addr': addr, 'len': 256})
+      #else:
+        #mdebug(5, "Write %(len)d bytes at 0x%(addr)X" % {'addr': addr, 'len': 256})
       self.cmdWriteMemory(addr, data[offs:offs+256])
       offs = offs + 256
       addr = addr + 256
@@ -425,8 +448,8 @@ class CommandInterface(object):
     if usepbar:
       pbar.update(pbar.maxval-lng)
       pbar.finish()
-    else:
-      mdebug(5, "Write %(len)d bytes at 0x%(addr)X" % {'addr': addr, 'len': 256})
+    #else:
+    #  mdebug(5, "Write %(len)d bytes at 0x%(addr)X" % {'addr': addr, 'len': 256})
     self.cmdWriteMemory(addr, data[offs:offs+lng] + ([0xFF] * (256-lng)) )
 
 
@@ -453,7 +476,7 @@ def read(filename):
   with open(filename, 'rb') as f:
     bytes = f.read()
 
-  if bytes.startswith('\x7FELF'):
+  if bytes.startswith(b'\x7FELF'):
     # Actually an ELF file.  Convert to binary
     handle, path = tempfile.mkstemp(suffix='.bin', prefix='stm32loader')
 
@@ -475,7 +498,10 @@ def read(filename):
       # Remove the temporary file
       os.unlink(path)
   else:
-    return [ord(x) for x in bytes]
+    if sys.version_info.major == 2:
+        return [ord(x) for x in bytes]
+    if sys.version_info.major == 3:
+        return [x for x in bytes]
 
 if __name__ == "__main__":
 
@@ -521,7 +547,7 @@ if __name__ == "__main__":
     elif o == '-e':
       conf['erase'] = 1
     elif o == '-s': # enables sector erase as opposed to mass erase
-      conf['sector_erase'] = eval(a) 
+      conf['sector_erase'] = eval(a)
     elif o == '-w':
       conf['write'] = 1
     elif o == '-v':
@@ -545,7 +571,7 @@ if __name__ == "__main__":
       conf['entry'] = a
     else:
       assert False, "unhandled option"
-  
+
   # Try and find the port automatically
   if conf['port'] == 'auto':
     ports = []
@@ -562,16 +588,16 @@ if __name__ == "__main__":
 
   # Find a port assuming a partial name was passed in, mostly this is to allow make to work
   # on different opertaing systems without specifying an upload port
-  else: 
+  else:
     pass
     # # Get a list of ports that start with the passed in argument
     # ports = glob.glob('%s*' % conf['port'])
     # ports = sorted(ports)
 
     # # If the argument is actually in the port list, use the argument, otherwise grab
-    # # the highest sorted port. E.g. if the port list is ttyUSB0, ttyUSB1, ttyUSB10 and the 
-    # # argument is ttyUSB1, then ports = ['ttyUSB1', 'ttyUSB10'] and ttyUSB1 will be used. 
-    # # If ttyUSB is the argument, ports = ['ttyUSB0', ttyUSB1', 'ttyUSB10'] and 
+    # # the highest sorted port. E.g. if the port list is ttyUSB0, ttyUSB1, ttyUSB10 and the
+    # # argument is ttyUSB1, then ports = ['ttyUSB1', 'ttyUSB10'] and ttyUSB1 will be used.
+    # # If ttyUSB is the argument, ports = ['ttyUSB0', ttyUSB1', 'ttyUSB10'] and
     # # ttyUSB0 will be used
     # if conf['port'] not in ports:
     #   conf['port'] = ports[0]
@@ -580,7 +606,7 @@ if __name__ == "__main__":
   cmd.open(conf['port'], conf['baud'])
   mdebug(10, "Open port %(port)s, baud %(baud)d" % {'port':conf['port'],
                             'baud':conf['baud']})
-  
+
   try:
     try:
       cmd.initChip(conf['entry'])
@@ -590,7 +616,9 @@ if __name__ == "__main__":
 
     bootversion = cmd.cmdGet()
 
-    mdebug(0, "Bootloader version 0x%X" % bootversion)
+    print("Uploading...")
+
+    #mdebug(0, "Bootloader version 0x%X" % bootversion)
 
     if bootversion < 20 or bootversion >= 100:
       raise Exception('Unreasonable bootloader version %d' % bootversion)
@@ -598,16 +626,19 @@ if __name__ == "__main__":
 
     chip_id = cmd.cmdGetID()
     assert len(chip_id) == 2, "Unreasonable chip id: %s" % repr(chip_id)
-    chip_id_num = (ord(chip_id[0]) << 8) | ord(chip_id[1])
+    if sys.version_info.major == 2:
+        chip_id_num = (ord(chip_id[0]) << 8) | ord(chip_id[1])
+    if sys.version_info.major == 3:
+        chip_id_num = (chip_id[0] << 8) | chip_id[1]
     chip_id_str = CHIP_ID_STRS.get(chip_id_num, None)
 
     if chip_id_str is None:
       mdebug(0, 'Warning: unrecognised chip ID 0x%x' % chip_id_num)
-    else:
-      mdebug(0, "Chip id 0x%x, %s" % (chip_id_num, chip_id_str))
+    #else:
+    #  mdebug(0, "Chip id 0x%x, %s" % (chip_id_num, chip_id_str))
 
     if (conf['write'] or conf['verify']):
-      mdebug(5, "Reading data from %s" % args[0])
+      #mdebug(5, "Reading data from %s" % args[0])
       data = read(args[0])
 
     copiedEEPROM = False
@@ -636,7 +667,7 @@ if __name__ == "__main__":
           cmd.cmdExtendedEraseMemory()
 
     #cmd.cmdWriteUnprotect()
-    
+
     if conf['write']:
       if chip_id_num == 0x0413:
         cmd.writeMemory(conf['address'], data[0x0000:512])

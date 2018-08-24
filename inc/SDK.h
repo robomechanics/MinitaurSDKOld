@@ -76,11 +76,33 @@ extern std::vector< Behavior *> behaviors;
 /**
  * @brief System clock time (in microseconds)
  */
-extern uint32_t clockTimeUS;
+uint32_t clockTimeUS();
 /**
  * @brief Low-level control time (in microseconds)
  */
 extern uint32_t llControlTime;
+/**
+ * @brief Set on init
+ */
+extern bool jointCurrentControlAvailable;
+/**
+ * @brief Behavior update rate (Hz)
+ */
+extern uint32_t behaviorRate;
+/**
+ * @brief Behavior update time (microseconds)
+ */
+extern uint32_t behaviorTime;
+/**
+ * @brief Set to true on NGR2.5+ with hip-knee encoders
+ */
+extern bool bHipKneeEncoder;
+extern bool bAbExtraFilt;
+
+/**
+ * @brief Does the Minitaur have smaller legs than normal?
+ */
+extern bool bLittleLegs;
 
 /**
  * @brief Initialize the SDK for a particular robot platform
@@ -119,9 +141,11 @@ void safetyShutoffEnable(bool flag);
  */
 void softStartEnable(bool flag);
 
-void * obc();
+bool isSoftStartEnabled();
 
-void * sim();
+void *obc();
+
+void *sim();
 
 /**
  * @brief Microsecond sleep function. 
@@ -131,19 +155,16 @@ void * sim();
  */
 extern "C" int usleep(useconds_t us);
 
-// TODO eventually the internal implementations should also use these
-#if !(defined(ARM_MATH_CM4) || defined(ARCH_obc))
 /**
  * @brief Actuation update (critical, hard real-time)
  * @details Should be called by the implementation
  */
-int sdkUpdateA();
+void sdkUpdateA(void *pvParameters);
 /**
  * @brief Behavior and other task update (less critical, but still should be called as often as possition)
  * @details Should be called by the implementation
  */
-int sdkUpdateB();
-#endif
+void sdkUpdateB(void *pvParameters);
 
 /** @} */ // end of addtogroup
 
@@ -225,7 +246,7 @@ enum MCUFD
 	 */
 	ADC_FILENO,
 	/**
-	 * Control toe-attached sensors. Command can be > 0 to enable, 0 to disable. args is ignored.
+	 * Control toe-attached sensors. When using IOCTL_CMD_WR, passing a value of IOCTL_TOE_SENSOR_WR_IGNORE_MASK skips that toe.
 	 */
 	TOE_SENSORS_FILENO,
 	/**
@@ -276,12 +297,16 @@ extern "C" int ioctl(int filedes, int command, void *args = NULL);
  * For some ioctl() files (see MCUFD) such as I2C, the cmd can be to read or write. Use
  * cmd = IOCTL_CMD_WR to write.
  */
-#define IOCTL_CMD_WR	(1)
+#define IOCTL_CMD_WR (1)
+#define IOCTL_CMD_WR_SCALE (2)
 #define IOCTL_CMD_JOYSTICK_SET_SENS	(0)
 #define IOCTL_CMD_JOYSTICK_SET_TYPE	(1)
 #define IOCTL_CMD_ADC_READ IOCTL_CMD_RD
+#define IOCTL_CMD_ADC_CTS_READ (2)
 #define IOCTL_CMD_GET_LAST_UPDATE_TIME (2)
 #define IOCTL_CMD_STATE_COPY_CALLBACK (3)
+
+#define IOCTL_TOE_SENSOR_WR_IGNORE_MASK 0xffff
 
 // Serial port configurations
 #if !defined(SERIAL_8N1)

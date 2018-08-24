@@ -116,6 +116,7 @@ enum MotorType
   U8II_G25 = 2;
   DXL_MX106 = 3;
   DCX32_GPX = 4;
+  U8II_G30 = 5;
 }
 // Params attached to a motor (not needed for core SDK functions, but needed for model-based work)
 message MotorModelParams

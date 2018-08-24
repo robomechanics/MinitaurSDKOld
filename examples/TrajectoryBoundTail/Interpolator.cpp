@@ -1,7 +1,7 @@
 #include "Interpolator.h"
 
-#define TIMESTEPS 84
-#define MOTORS 9
+#define TIMESTEPS 81
+#define MOTORS 1
 
 Interpolator::Interpolator() {}
 
