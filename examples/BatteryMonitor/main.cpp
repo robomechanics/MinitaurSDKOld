@@ -24,17 +24,20 @@ enum FHMode
 	FH_SIT = 0,
 	FH_STAND,
 	FH_LEAP,
-	FH_LAND
+	FH_LAND,
+	FH_KILL	// Add FH_KILL to your code
 };
 
 /**
  * See "Getting started with the FirstHop behavior" in the documentation for a walk-through
  * guide.
  */
+///////////////////////// COPY AND PASTE THIS CHUNK /////////////////////////////////////////////////
 
 float batteryAverage = 0;
 float batCounter = 0;
 float batSum = 0;
+// These flags tells the robot when the voltages are too low
 bool lowVoltage = false;
 bool killSwitch = false;
 class BatteryMonitor : public Peripheral
@@ -95,6 +98,8 @@ public:
 	}
 
 };
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FirstHop : public ReorientableBehavior
 {
 public:
@@ -130,8 +135,15 @@ public:
 	}
 
 	void update()
-	{
-		
+	{	
+		///////////////////////// COPY AND PASTE THIS CHUNK //////////////////////////////////////////////////
+		if(lowVoltage == true){
+			mode = FH_SIT;
+		}
+		if(killSwitch){
+			mode = FH_KILL;
+		}
+		/////////////////////////////////////////////////////////////////////////////////////////////////////
 		if (isReorienting())
 			return;
 		C->mode = RobotCommand_Mode_LIMB;
@@ -255,6 +267,22 @@ public:
 				}
 			}
 		}
+		///////////////////////// COPY AND PASTE THIS CHUNK //////////////////////////////////////////////////
+		else if (mode == FH_KILL){
+			// This kills the robot
+			for (int i = 0; i < P->limbs_count; ++i)
+			{
+
+				// This updates the parameters struct to switch back into meters as its units.
+				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
+
+				limb[i].setOpenLoop(ANGLE, 0);
+				limb[i].setPosition(EXTENSION, 0);
+
+			}
+
+		}
+		///////////////////////////////////////////////////////////////////////////
 	}
 
 	bool running()
