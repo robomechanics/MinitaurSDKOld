@@ -11,7 +11,7 @@
 #include <Motor.h>
 #include <Behavior.h>
 
-#define MOT 0
+#define MOT 9
 
 char myData[32];
 float* myData_buf = (float*)myData;
@@ -19,6 +19,21 @@ float* myData_buf = (float*)myData;
 enum SMTMode {
 	SMT_STOP = 0, SMT_GO
 };
+
+float avg(float *myArray, int len){
+ float sum = 0;
+ float result;
+ for (int i = 0; i < len; i++){
+   sum += myArray[i];
+ }
+ result = sum/float(len);
+ return result;
+}
+
+const int velocityBuffer = 1000;
+static float driverVelocities [velocityBuffer];
+static int counter = 0;
+static bool filledUpArray = 0;
 
 class SingleMotorTest : public Behavior {
 public:
@@ -34,9 +49,14 @@ public:
 	float cmdMax = 1;
 
 	uint32_t tLast; // System time @ last state change
+
+    float betterDriverVelocity;
+    float avgVel = 0;
 	
 	void begin() {
 		mode = SMT_GO;
+		avgVel = 0;
+		counter = 0;
 		tLast = S->millis;// Set tLast at onset 
 	}
 
@@ -45,10 +65,11 @@ public:
 
 		if (mode == SMT_GO)
 		{
-			joint[MOT].setGain(kp, kd); //Sets P and D gains for position based control
+			// joint[MOT].setGain(kp, kd); //Sets P and D gains for position based control
 			posDes = 0;
-			joint[MOT].setPosition(posDes);
-			// joint[MOT].setOpenLoop(0.05);
+			// joint[MOT].setPosition(posDes);
+			cmd = 0.1*((int)((S->millis - tLast) / 5000) % 10);
+			joint[MOT].setOpenLoop(cmd);
 			// joint[MOT].setOpenLoop(1/(0.95*16)*(0.05*0.2/0.0954 + 0.0954*1*joint[MOT].getVelocity()));
 
 			// posDes = 0;
@@ -61,6 +82,23 @@ public:
 		{
 			joint[MOT].setOpenLoop(0.0);
 		}
+
+        if (S->millis - tLast >=250)
+        {
+        	driverVelocities[counter] = joint[MOT].getVelocity();
+
+        	if(counter == velocityBuffer-1) filledUpArray = 1; //now we can average the posVelocities
+            counter++;
+      		if (filledUpArray == 1){
+        	    betterDriverVelocity = avg(driverVelocities, velocityBuffer);
+        	    avgVel = betterDriverVelocity;
+
+            		counter = 0;
+            	filledUpArray = 0;
+
+       		}
+        }
+
 
 
 	}
@@ -80,9 +118,11 @@ void debug()
 {
 	printf("Time: %4.1fs. ", (float) 0.001*(S->millis - singleMotorTest.tLast));
 	printf("Mode: %d, ", singleMotorTest.mode);
-	printf("Pos: %6.3f, ", joint[MOT].getPosition());
+	// printf("Pos: %6.3f, ", joint[MOT].getPosition());
 	printf("Vel: %6.3f, ", joint[MOT].getVelocity());
-	printf("Raw Pos: %6.3f, ",joint[MOT].getRawPosition());
+	printf("AvgVel: %6.3f, ", singleMotorTest.avgVel);
+	
+	// printf("Raw Pos: %6.3f, ",joint[MOT].getRawPosition());
 	printf("Command: %6.3f. ", joint[MOT].getOpenLoop());
 	printf("\n");
 
@@ -104,6 +144,7 @@ int main(int argc, char *argv[]) {
 	// If there is a gearbox the joint electronics doesn't know about, this could be > 1.
 	// Do not set to 0.
 	P->joints[MOT].gearRatio = 1.0;
+	// P->joints[MOT].gearRatio = 45.39;
 
 	// Configure joints
 	#define NUM_MOTORS 10
@@ -130,7 +171,7 @@ int main(int argc, char *argv[]) {
 	//add our behavior to behaviors vector
 	behaviors.push_back(&singleMotorTest);
 
-	setDebugRate(100);
+	setDebugRate(10);
 
 	SerialPortConfig cfg;
 	cfg.baud = 115200;

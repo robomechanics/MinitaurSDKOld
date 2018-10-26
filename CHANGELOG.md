@@ -8,41 +8,20 @@ The version numbers are referenced to the git tags.
 
 ## [Unreleased]
 
-## [0.1.21] - 2018-06-26
-
-### Fixed
-- Compensate for assembly error on some MBm0.5.2 boards by ignoring the version read from EEPROM
-
-### Added
-- VN100 driver improvements: now uses async update, fixes euler angle "noise", and adds miscellaneous performance improvements
-- Unified microcontroller and other architectures in the task scheduling
-- SDK auto install script
-- Robot port autodetect (Stand example)
-- Example and debug documentation
-
-## [0.1.20] - 2018-06-21
-
-### Fixed
-- `clockTimeUS()` is now a function; now actually useful for profiling
-
-### Added
-- Task priorities and running order updated so behavior gets the latest states and the latest commands are sent. Behavior now runs at the same priority as lower-level updates.
-- ADC continuous sampling (example in FirstHop)
-
 ## [0.1.19] - 2018-06-06
 
-### Fixes
+## Fixes
 - CommandOverEthernet lateral movement addition and battery state fix
 - Documentation
 
-### Added
+## Added
 - Support for current control selection in GRBLE actuators
 - A way for users to set unwrapOffset when the SDK is keeping track of a gear ratio
 - Starter, Waddle, and RockNRoll Minitaur examples
 
 ## [0.1.18] - 2018-05-04
 
-### Fixes
+## Fixes
 - CommandOverEthernet ethernet read() function simultaneous driver and application access
 
 ## [0.1.17] - 2018-04-16

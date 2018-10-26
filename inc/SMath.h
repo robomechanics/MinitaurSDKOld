@@ -146,11 +146,6 @@ extern "C" float arm_cos_f32(float in);
  * @return x mapped from [in_min, in_max] to [out_min, out_max]
  */
 float map(float x, float in_min, float in_max, float out_min, float out_max);
-
-static inline float constrain_map(float x, float in_min, float in_max, float out_min, float out_max)
-{
-	return constrain(map(x, in_min, in_max, out_min, out_max), fminf(out_min, out_max), fmaxf(out_min, out_max));
-}
 /**
  * @brief Linear interpolation between given endpoints.
  * @param from Lower endpoint
