@@ -3,7 +3,7 @@
 #ifndef INTERPOLATOR_H
 #define INTERPOLATOR_H
 
-#define TIMESTEPS 84
+#define TIMESTEPS 42
 #define MOTORS 8 
 
 class Interpolator {
