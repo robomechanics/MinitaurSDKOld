@@ -1,0 +1,29 @@
+pseudocode for tail control
+Peter Li
+
+
+float get_body_info()
+	float roll = S->imu.euler.x; // This is an actual sample line from the SDK documentation
+	float tail_pos = joint[9].getPosition// assume 1 dof tail, command it as a joint for minitaur
+	// future: maybe some other information (like leg force and whatnot to increase the accuracy)
+	return roll
+
+void move_tail(body_data)
+	float alpha, beta, gamma
+	// alpha should be negative, proportional gain on anticipated roll in order to cancel it
+	// beta should be positive, sort of like a weird spring. Output from middle term should be positive infinity near zero, and negative infinity near pi. 0 at 0
+	// gamma should be positive, damping constant
+	//parse data into local variables
+	tau = alpha*(roll_accel) + beta*(ln(tail_pos/(pi-tail_pos))) + gamma * tail_vel
+	// since you can't apply infinite torque, use some form of saturation
+	if (tau > 1): tau = 1
+	else if (tau < -1): tau = -1
+	joint[9].setOpenLoop(tau)
+
+	//the feedback should be fast enough that the tail has a decent response
+
+while (walking)
+	do_leg_stuff() //This should just be the default walking or some other walking, not implemented here
+	body_data = get_body_info()
+	move_tail(body_data)
+
