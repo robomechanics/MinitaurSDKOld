@@ -8,21 +8,30 @@
 #include <stdio.h>
 #include <SDK.h>
 #include <Motor.h>
+#include "rmlLimb.h"
+
+/* Jumping with tail using RML limb*/
 
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[9] =  {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679, 1}; // RML Ellie
+const float motZeros[9] =  {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679, 1}; // RML Ellie
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
+//remember to change the makefile if using rml limb!
+rmlLimb leg[4]; // declare RML limb
+
+int stateflag = 0; // used for debugging
 enum jumpMode
 {
     STAND,
     SQUAT,
     EXTEND,
     CONTRACT,
-    LAND
+    PRELAND,
+    LAND,
+    POSTLAND
 };
 
 bool almostEq (float x, float y, float tol = 0.2){
@@ -42,7 +51,6 @@ float avg(float list[], int n){
 class Starter : public Behavior {
 public:
     jumpMode mode = STAND;
-    int tLast;
     int tCurrent;
     int standPrep = 0;
     int tStand;
@@ -55,33 +63,27 @@ public:
     int contractPrep = 0;
     int tContract;
     int landPrep = 0;
+    int landCounterFull = 0;
     int hasLanded = 0;
-    int isStable = 0;
 
-    float standInAng = PI/2 + 0.1;
-    float standOutAng = PI/2 - 0.1;
-    float squatAngle = PI/4;
-    float squatInsideRef = PI/2;
-    float squatOutsideRef = PI/4;
-    float squatInsideAng = PI/2;
-    float squatInFrontAng = squatInsideRef - 0.1;
-    float squatOutFrontAng = squatOutsideRef + 0.1;
-    float squatOutsideAng = PI/4;
-    float extendInsideAng = 2.8;
-    float extendOutsideAng = 1;
-    float contractInAng = squatInsideAng;
-    float contractOutAng = squatOutsideAng;
-    float landInRearAng = standInAng;
-    float landOutRearAng = standOutAng;
-    float ang0, ang1, ang4, ang5, leftFrontAng, rightFrontAng, frontAng;
+    float xRef, yRef; // reference x and y values
+    float ext0, ext1; // extensions of legs 0 and 1
+
+
+    float standAng = 0.1;
+    float standExt = HALF_PI;
+    float squatAng = 0.7;
+    float squatExt = 0.8;
+    float contractAng = standAng;
+    float contractExt = squatExt;
+    float landAng = radians(-20);
+    float landExt = HALF_PI;
 
     //IMU arrays for averaging (low pass filter)
     static const int filterSize = 12;
     float ac_x[filterSize];
     float ac_z[filterSize];
 
-    float landInFrontAng = standInAng - 0.5;
-    float landOutFrontAng = standOutAng + 0.5;
     float tailVel;
     float forwardAccel;
     float upAccel;
@@ -96,27 +98,20 @@ public:
         // Command limbs
         C->mode = RobotCommand_Mode_JOINT;
         mode = STAND;
-        tLast = S->millis;
+        for (int i=0; i<4; ++i){
+            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+        }
     }
 
     // signal() is called when receiving a signal from the controller
     // void signal(uint32_t sig) {
 
     // }
-
     // update() is called once per loop while the behavior is running
-    void update() {
-        int insideMot[] = {1,3,4,6};
-        int outsideMot[] = {0,2,5,7};
-        int frontMot[] = {0,1,4,5};
-        int backMot[] = {2,3,6,7};
-        int frontInMot[] = {1,4};
-        int frontOutMot[] = {0,5};
-        int rearOutMot[] = {2,7};
-        int rearInMot[] = {3,6};
-        float diff1, diff0;
-        float sign1, sign0;
-        
+    void update() {       
+        for (int i=0; i<4; ++i){
+            leg[i].updateState();
+        }
         tCurrent = S->millis;
         tailPos = joint[8].getPosition();
         tailVel = joint[8].getVelocity();
@@ -124,25 +119,28 @@ public:
         if (C->behavior.mode == BehaviorMode_RUN){
             switch(mode){
                 case STAND:
+                    for (int i=0; i<4; ++i){
+                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                    }
+                    stateflag = 1;
                     if (standPrep == 0){
                         tStand = tCurrent;
                         standPrep = 1;
                     }
                     for (int i = 0; i<4; ++i){
-                        joint[insideMot[i]].setGain(0.42, 0.006);
-                        joint[insideMot[i]].setPosition(standInAng);
-
-                        joint[outsideMot[i]].setGain(0.42, 0.006);
-                        joint[outsideMot[i]].setPosition(standOutAng);
+                        leg[i].setGain(ANGLE,1, 0.005);
+                        leg[i].setGain(EXTENSION,.3, 0.005);
+                        leg[i].setPosition(ANGLE,standAng);
+                        leg[i].setPosition(EXTENSION,standExt);
                     }
                     if (useTail){
                         if (tailPos < PI/4){
                             joint[8].setGain(0.1, 0.006);
                             joint[8].setPosition(PI/2); //prepare tail
                         } else if (tailPos > PI/2){
-                            joint[8].setOpenLoop(-0.3);
+                            joint[8].setOpenLoop(-0.25);
                         }else{
-                            tau = 0.15-0.03*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                            tau = 0.12-0.03*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
                             joint[8].setOpenLoop(tau);
                         }
                     }
@@ -150,120 +148,97 @@ public:
                     //switch mode when ready
                     if (tCurrent - tStand > 2000) {// been standing a while now
                         mode = SQUAT;
+                        for (int i=0; i<4; ++i){
+                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                        }
                         standPrep = 0;
-                        extendPrep = 0;
                     }
                         
                 break;
 
                 case SQUAT:
+                    for (int i=0; i<4; ++i){
+                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                    }
+                    stateflag = 2;
                     if (squatPrep == 0){ // start a timer
                         tSquatStart = tCurrent; 
                         squatPrep = 1;
                     }
                     for (int i = 0; i<4; ++i){ // desired leg positions
-                        /*ang0 = joint[insideMot[i]].getPosition();
-                        ang1 = joint[outsideMot[i]].getPosition();
-                        diff0 = ang0 - squatInsideRef;
-                        sign0 = (diff0 >= 0)? 1:-1;
-                        diff1 = ang1 - squatOutsideRef;
-                        sign1 = (diff1 >= 0)? 1:-1;
-                        // gradually change to squat position
-                        if (abs(diff0) > 0.5 && squatReady == 0){
-                            squatInsideAng = ang0 - 0.07*(sign0);
-                        } else if (abs(diff1) > 0.2&& squatReady == 0){
-                            squatInsideAng = ang0 - 0.05*(sign0);
-                        } else{
-                            squatInsideAng = squatInsideRef;
-                            if (squatReady == 0) {squatReady = 1;}
-                        }
-                        if (abs(diff1) > 0.5 && squatReady == 0){
-                            squatOutsideAng = ang1 - 0.07*(sign1);
-                        } else if (abs(diff1) > 0.2 && squatReady == 0){
-                            squatOutsideAng = ang1 - 0.05*(sign1);
-                        } else{
-                            squatOutsideAng = squatOutsideRef;
-                            if (squatReady == 0) {squatReady = 1;}
-                        }*/
-                        if (i<2){
-                            joint[frontInMot[i]].setGain(0.7, 0.015);
-                            joint[frontInMot[i]].setPosition(squatInsideAng);
-                            joint[frontOutMot[i]].setGain(0.7,0.015);
-                            joint[frontOutMot[i]].setPosition(squatOutsideAng);
-                        }
-
-                        joint[outsideMot[i]].setGain(0.7,0.015);
-                        joint[outsideMot[i]].setPosition(squatOutsideAng);
-
-                        if (useTail){
-                            if (tailPos < PI/4){
-                                joint[8].setGain(0.1, 0.006);
-                                joint[8].setPosition(PI/2); //prepare tail
-                            } else if (tailPos > PI/2){
-                                joint[8].setOpenLoop(-0.3);
-                            }else{
-                                tau = 0.15-0.03*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
-                                joint[8].setOpenLoop(tau);
-                            }
+                        leg[i].setGain(ANGLE,1, 0.005);
+                        leg[i].setGain(EXTENSION,.3, 0.005);
+                        leg[i].setPosition(ANGLE,squatAng);
+                        leg[i].setPosition(EXTENSION,squatExt);
+                    }
+                    if (useTail){
+                        if (tailPos < PI/4){
+                            joint[8].setGain(0.1, 0.006);
+                            joint[8].setPosition(PI/2); //prepare tail
+                        } else if (tailPos > PI/2){
+                            joint[8].setOpenLoop(-0.25);
+                        }else{
+                            tau = 0.1-0.04*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                            joint[8].setOpenLoop(tau);
                         }
                     }
                     if (tCurrent - tSquatStart > 1000){ // been squatting a while
-                            mode = EXTEND; // go to next phase
-                            squatPrep = 0;
-                            break;
+                        mode = EXTEND; // go to next phase
+                        squatPrep = 0;
+                        for (int i=0; i<4; ++i){
+                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                        }
+                        break;
                     }
                     
                 break;
 
+
                 case EXTEND:
                 /*
-                start flicking tail
-                wait for some small time
+                starts flicking tail
+                tail goes to some angle
                 set position on leg joints
                 want to have it so that robot is airborne when tail is upright
                 */
-                    if (extendPrep ==0){
+                    for (int i=0; i<4; ++i){
+                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                    }
+                    if (extendPrep == 0){ // sets a time when extending starts
                         tExtend = tCurrent;
                         extendPrep = 1;
                     }
 
                     
-                    if (tCurrent-tExtend > whipTime){
+                    //if (tailPos < tailJumpAng){
+                    if (true){ //if you want to do it without tail
                         // use setOpenLoop(1) to give maximum power
                         for (int i = 0; i<4; ++i){
-                        joint[frontMot[i]].setOpenLoop(1);
-                        joint[backMot[i]].setOpenLoop(0.6);
+                            leg[i].setOpenLoop(1);
                         }
                     }
                     
                     // tail
                     if (useTail){
-                        if (tailPos < 0){
-                            joint[8].setOpenLoop(0);
-                        } else{
-                            joint[8].setOpenLoop(-0.7); //make sure the tail swings upwards first
-                        }
-                        
+                        joint[8].setOpenLoop(-0.5);   
                     }
                     
-
-                    float q0,q1;
-                    for (int i = 0; i<4; ++i){
-                        q0 = joint[insideMot[i]].getPosition();
-                        q1 = -joint[outsideMot[i]].getPosition();
-                        float diff = q1-q0;
-                        if (diff<0){diff = diff + 2*PI;}
-                        if (diff < 0.40){
-                            landPrep = 0;
-                            extendPrep = 0;
-                            mode = CONTRACT;
-                            break;
-                        } 
+                    //exit condition 1: if front legs are nearly fully extended
+                    if (leg[0].getPosition(EXTENSION)>2.8 ||
+                        leg[1].getPosition(EXTENSION)>2.8){
+                        mode = CONTRACT;
+                        extendPrep = 0;
+                        for (int i=0; i<4; ++i){
+                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                        }
                     }
-                    if (tCurrent - tExtend - whipTime > 400){
-                            landPrep = 0;
-                            extendPrep = 0;
-                            mode = CONTRACT;
+                    // exit condition 2:
+                    if (tCurrent - tExtend > 400){
+                        extendPrep = 0;
+                        mode = CONTRACT;
+                        for (int i=0; i<4; ++i){
+                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                        }
                     }
 
                 break;
@@ -273,6 +248,9 @@ public:
                 take legs in
                 keep flicking tail
                 */
+                    for (int i=0; i<4; ++i){
+                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                    }
                     if (contractPrep == 0){
                         tContract = tCurrent;
                         contractPrep = 1;
@@ -289,100 +267,107 @@ public:
                         }
                         
                     }
-                    
+                    // leg stuff
                     for (int i = 0; i<4; ++i){
-                        joint[insideMot[i]].setGain(0.5, 0.008);
-                        joint[insideMot[i]].setPosition(contractInAng);
-
-                        joint[outsideMot[i]].setGain(0.5,0.008);
-                        joint[outsideMot[i]].setPosition(contractOutAng);
-
-                        if (almostEq(joint[insideMot[i]].getPosition(), contractInAng)){
-                            mode = LAND;
-                            landPrep = 0;
-                            break;
-                        }
+                        leg[i].setGain(ANGLE,0.5, 0.005);
+                        leg[i].setGain(EXTENSION,.4);
+                        leg[i].setPosition(ANGLE, contractAng);
+                        leg[i].setPosition(EXTENSION, contractExt);
                     }
-                    if (tCurrent - tContract > 500){
+
+                    // condition to go to land:
+                    if (almostEq(leg[0].getPosition(EXTENSION), contractExt) ||
+                        almostEq(leg[1].getPosition(EXTENSION), contractExt)){
                         mode = LAND;
                         contractPrep = 0;
+                    }
+
+                    // other condition to land
+                    if (tCurrent - tContract > 400){
+                        mode = PRELAND;
+                        contractPrep = 0;
+                        for (int i=0; i<4; ++i){
+                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                        }
                     }
                     
 
                 break;
 
+                case PRELAND:
+                    for (int i=0; i<4; ++i){
+                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+                    }
+                    for (int i = 0; i<4; ++i){
+                        leg[i].setGain(ANGLE, , 0.005);
+                        leg[i].setPosition(ANGLE,landAng);
+                        leg[i].setGain(EXTENSION,.4);
+                        leg[i].setPosition(EXTENSION,landExt);
+                    }
+                    if (almostEq(leg[0].getPosition(EXTENSION), landExt) ||
+                        almostEq(leg[1].getPosition(EXTENSION), landExt)){
+                        mode = LAND;
+                        contractPrep = 0;
+                        for (int i=0; i<4; ++i){
+                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
+                        }
+                    }
+
+
                 case LAND:
+                    for (int i=0; i<4; ++i){
+                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
+                    }
                     static int counter = 0;
                     ac_x[counter] = S->imu.linear_acceleration.x;
                     forwardAccel = avg(ac_x,filterSize);
                     ac_z[counter] = S->imu.linear_acceleration.z;
                     upAccel = avg(ac_z,filterSize);
-                    ang0 = joint[0].getPosition();
-                    ang1 = joint[1].getPosition();
-                    ang4 = joint[4].getPosition();
-                    ang5 = joint[5].getPosition();
-                    leftFrontAng = (ang0-ang1)/2.0;
-                    rightFrontAng = (ang4-ang5)/2.0;
-                    frontAng = (leftFrontAng+rightFrontAng)/2.0;
-                    if (landPrep == 0 && almostEq(ang0, landOutFrontAng) && almostEq(ang1, landInFrontAng)){
-                        landPrep = 1;
-                    }
-                    if (landPrep == 1 && upAccel <= -18.0 && forwardAccel < -2.5){
-                        hasLanded = 1;
-                    }
-                    if (hasLanded && frontAng > -0.05){ 
-                        isStable = 1;
-                    }
-                    if (isStable){ // switch to regular stand after landing stabilizes
-                        for (int i = 0; i<4; ++i){
-                            joint[insideMot[i]].setGain(0.55, 0.01);
-                            joint[insideMot[i]].setPosition(standInAng);
 
-                            joint[outsideMot[i]].setGain(0.55, 0.01);
-                            joint[outsideMot[i]].setPosition(standOutAng);
-                        }
-                        if (useTail){ // don't do much with the tail after stable
-                            joint[8].setGain(0.4, 0.01);
+                    if (counter == filterSize-1){
+                        // filter is used to smoothen IMU accel readings
+                        landCounterFull = 1;
+                    }
+                
+                    for (int i = 0; i<4; ++i){
+                        leg[i].setGain(ANGLE, , 0.005);
+                        leg[i].setPosition(ANGLE,landAng);
+                        leg[i].setGain(EXTENSION,.4);
+                        leg[i].setPosition(EXTENSION,landExt);
+                    }
+
+                    ext0 = leg[0].getPosition(EXTENSION);
+                    ang0 = leg[0].getPosition(ANGLE);
+                    ext1 = leg[1].getPosition(EXTENSION);
+                    ang1 = leg[1].getPosition(ANGLE);
+                    float x0 = ext0*fastcos(ang0);
+                    float y0 = ext0*fastsin(ang0);
+                    float x1 = ext1*fastcos(ang1);
+                    float y1 = ext1*fastsin(ang1);
+                    float diff0 = fastsqrt((x0-xRef)*(x0-xRef) + (y0-yRef)*(y0-yRef));
+                    float diff1 = fastsqrt((x1-xRef)*(x1-xRef) + (y1-yRef)*(y1-yRef));
+
+
+                    if (hasLanded){ // use tail to bring back body position
+                        if (joint[8].getPosition() < HALF_PI){
+                            joint[8].setOpenLoop(0.6);
+                        } else{
+                            joint[8].setGain(0.1, 0.006);
                             joint[8].setPosition(0);
-                            //joint[8].setOpenLoop(0); //for debugging
-                        }
-                    } else {
-                        for (int i=0;i<2;i++){
-                            joint[frontInMot[i]].setGain(0.6, 0.011);
-                            joint[frontInMot[i]].setPosition(landInFrontAng);
-                            joint[frontOutMot[i]].setGain(0.6,0.011);
-                            joint[frontOutMot[i]].setPosition(landOutFrontAng);
-
-                            joint[rearInMot[i]].setGain(0.6, 0.011);
-                            joint[rearInMot[i]].setPosition(landInRearAng);
-                            joint[rearOutMot[i]].setGain(0.6, 0.011);
-                            joint[rearOutMot[i]].setPosition(landOutRearAng);
-                        }
-                        if (useTail && !hasLanded){ // continue what contract was doing
-                            if (tailPos > (-PI/4)){ // not yet near limit
-                                joint[8].setOpenLoop(-0.5);
-                            } else if (tailPos < (-PI/2)){ // past limit
-                                joint[8].setOpenLoop(0.3);
-                            }
-                            else{ // near limit
-                                tau = -0.1-0.05*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
-                                joint[8].setOpenLoop(tau);
-                            }
-                        } else if (useTail && hasLanded){ //try to recover
-                            joint[8].setGain(0.4,0.01);
-                            joint[8].setPosition(0);
-                            
-                        }
-
+                        } 
+                    } else{ // keep swinging tail until it almost hits butt
+                        tau = -0.2*logf((tailPos+PI/2)/(PI/2-tailPos));
+                        joint[8].setOpenLoop(-0.7+tau);
                     }
                     counter = (counter+1)%filterSize;
-                    
+               
                 break;
             }
 
         }
         // Stand when STOP
         else if (C->behavior.mode == BehaviorMode_STOP){
+            stateflag = 0;
             hasLanded = 0;
             isStable = 0;
             standPrep = 0;
@@ -391,15 +376,15 @@ public:
             contractPrep = 0;
             landPrep = 0;
             extendPrep = 0;
-            for (int i = 0; i<4; ++i){
-                joint[insideMot[i]].setGain(0.42, 0.006);
-                joint[insideMot[i]].setPosition(standInAng);
-
-                joint[outsideMot[i]].setGain(0.42, 0.006);
-                joint[outsideMot[i]].setPosition(standOutAng);
+            for (int i = 0; i<4; i++){
+                leg[i].setGain(ANGLE,.9);
+                leg[i].setGain(EXTENSION,.3);
+                leg[i].setPosition(ANGLE,standAng);
+                leg[i].setPosition(EXTENSION,standEx);
             }
 
-            //joint[8].setOpenLoop(0);
+            joint[8].setOpenLoop(0);
+            /*
             if (tailPos > 0.1 && tailPos < PI/2){
                 tau = -0.1*logf((tailPos+PI/2)/(PI/2-tailPos));
                 joint[8].setOpenLoop(tau);
@@ -410,19 +395,11 @@ public:
             else{
                 joint[8].setGain(0.1,0.006);
                 joint[8].setPosition(0);
-            }
-            /*
-            if (tailPos > (-PI/4)){ // not yet near limit
-                joint[8].setGain(0.4, 0.02);
-                joint[8].setPosition(-PI/2);
-            } else if (tailPos < (-PI/2)){
-                joint[8].setOpenLoop(0.4);
-            }
-            else{
-                tau = -0.2-0.05*logf((tailPos+PI/2)/(PI/2-tailPos));
-                joint[8].setOpenLoop(tau);
             }*/
-            
+        }
+
+        for (int i=0; i<4; ++i){
+            leg[i].updateCommand();
         }
 
     }
@@ -441,40 +418,28 @@ public:
 
 // debug() is called at the DEBUG_RATE
 void debug() {
+    float r, th, dr, dth, q0, q1, ang, ext, df; 
+    float roll, pitch, yaw;
+    printf("state = %d\n", stateflag);
     /*
-    for(int i = 0; i<8; i++){
-        float pos = joint[i].getPosition();
-        printf("Motor %d: %f\t", i, pos);
-        if (i==3){printf("\n");}
-    }*/
+    for (int i = 0; i < 4; ++i)
+    {
+        q0 = leg[i].q0; 
+        q1 = leg[i].q1; 
+        leg[i].FK(q0, q1, r, th); 
 
-    
-    //printf("Tail: %f\n", joint[8].getPosition());
-    float q0 = joint[6].getPosition();
-    float q1 = -joint[7].getPosition();
-    float squatInsideRef = PI/2;
-    float squatOutsideRef = PI/4;
-    float diff = q1-q0;
-    if (diff<0){diff = diff + 2*PI;}
-    float a_x = S->imu.linear_acceleration.x;
-    float a_y = S->imu.linear_acceleration.y;
-    float a_z = S->imu.linear_acceleration.z;
-    float ang0 = joint[0].getPosition();
-    float ang1 = joint[1].getPosition();
-    float ang4 = joint[4].getPosition();
-    float ang5 = joint[5].getPosition();
-    float leftFrontAng = (ang0-ang1)/2.0;
-    float rightFrontAng = (ang4-ang5)/2.0;
-    float frontAng = (leftFrontAng+rightFrontAng)/2.0;
-    float tailPos = joint[8].getPosition();
-    float tailVel = joint[8].getVelocity();
-    
-    //printf("q0 = %f\t -q1 = %f\t, diff = %f\n",q0,-q1,diff);
-    //printf("X: %f\t Y:%f\t Z: %f\t\n", a_x, a_y, a_z);
-    //printf("4 = %f\t5=%f\t, insideRef = %f\t, outsideRef = %f\n", ang4, ang5, squatInsideRef, squatOutsideRef);
-    // printf("diff 4 = %f\t diff 5 = %f\n", ang4-squatInsideRef, ang5-squatOutsideRef);
-    printf("tail = %f\tv = %f\tupAccel = %f\tforwardAccel = %f\n", tailPos, tailVel, a_z, a_x);
-    
+        dr = leg[i].getVelocity(EXTENSION);
+        dth = leg[i].getVelocity(ANGLE);
+        df = leg[i].getOpenLoop(0);
+        printf("limb %d:, angle = %f, extension = %f, power = %f\n", i, th, r, df);
+    }*/
+    for (int i = 0; i<8; ++i){
+        df = joint[i].getOpenLoop();
+        printf("joint %d, power = %f\n", i, df);
+    }
+    pitch = S->imu.euler.y;
+    printf("pitch = %f\n", pitch);
+    printf(" \n");
 }
 
 
@@ -519,7 +484,10 @@ int main(int argc, char *argv[]) {
     P->joints[8].gearRatio = 1;
 
     P->limbs_count = 0;
-
+    for(int i = 0; i<4; ++i)
+    {
+        leg[i].Init(i);
+    }
 
     // Uncomment to clear Bound and Walk behaviors
     behaviors.clear();
@@ -528,7 +496,7 @@ int main(int argc, char *argv[]) {
     Starter starter;
     behaviors.push_back(&starter);
     starter.begin();
-    setDebugRate(100);
+    setDebugRate(2);
         
     // Run
     return begin();
