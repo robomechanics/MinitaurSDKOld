@@ -77,7 +77,7 @@ public:
     float contractAng = standAng;
     float contractExt = squatExt;
     float landAng = radians(-20);
-    float landExt = HALF_PI;
+    float landExt = 0.2; // Important, this one is in meters instead of angle
 
     //IMU arrays for averaging (low pass filter)
     static const int filterSize = 12;
@@ -110,6 +110,11 @@ public:
     // update() is called once per loop while the behavior is running
     void update() {       
         for (int i=0; i<4; ++i){
+            if (mode == LAND){
+                P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
+            } else {
+                P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+            }
             leg[i].updateState();
         }
         tCurrent = S->millis;
@@ -119,9 +124,6 @@ public:
         if (C->behavior.mode == BehaviorMode_RUN){
             switch(mode){
                 case STAND:
-                    for (int i=0; i<4; ++i){
-                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                    }
                     stateflag = 1;
                     if (standPrep == 0){
                         tStand = tCurrent;
@@ -149,17 +151,13 @@ public:
                     if (tCurrent - tStand > 2000) {// been standing a while now
                         mode = SQUAT;
                         for (int i=0; i<4; ++i){
-                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
                         }
                         standPrep = 0;
                     }
                         
-                break;
+                    break;
 
                 case SQUAT:
-                    for (int i=0; i<4; ++i){
-                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                    }
                     stateflag = 2;
                     if (squatPrep == 0){ // start a timer
                         tSquatStart = tCurrent; 
@@ -185,13 +183,10 @@ public:
                     if (tCurrent - tSquatStart > 1000){ // been squatting a while
                         mode = EXTEND; // go to next phase
                         squatPrep = 0;
-                        for (int i=0; i<4; ++i){
-                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                        }
                         break;
                     }
                     
-                break;
+                    break;
 
 
                 case EXTEND:
@@ -201,15 +196,11 @@ public:
                 set position on leg joints
                 want to have it so that robot is airborne when tail is upright
                 */
-                    for (int i=0; i<4; ++i){
-                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                    }
                     if (extendPrep == 0){ // sets a time when extending starts
                         tExtend = tCurrent;
                         extendPrep = 1;
                     }
 
-                    
                     //if (tailPos < tailJumpAng){
                     if (true){ //if you want to do it without tail
                         // use setOpenLoop(1) to give maximum power
@@ -228,29 +219,20 @@ public:
                         leg[1].getPosition(EXTENSION)>2.8){
                         mode = CONTRACT;
                         extendPrep = 0;
-                        for (int i=0; i<4; ++i){
-                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                        }
                     }
                     // exit condition 2:
                     if (tCurrent - tExtend > 400){
                         extendPrep = 0;
                         mode = CONTRACT;
-                        for (int i=0; i<4; ++i){
-                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                        }
                     }
 
-                break;
+                    break;
 
                 case CONTRACT:
                 /*
                 take legs in
                 keep flicking tail
                 */
-                    for (int i=0; i<4; ++i){
-                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                    }
                     if (contractPrep == 0){
                         tContract = tCurrent;
                         contractPrep = 1;
@@ -275,29 +257,23 @@ public:
                         leg[i].setPosition(EXTENSION, contractExt);
                     }
 
-                    // condition to go to land:
+                    // condition to go to preland: leg has contracted in either angle or extension
                     if (almostEq(leg[0].getPosition(EXTENSION), contractExt) ||
                         almostEq(leg[1].getPosition(EXTENSION), contractExt)){
                         mode = LAND;
                         contractPrep = 0;
                     }
 
-                    // other condition to land
-                    if (tCurrent - tContract > 400){
+                    // other condition to preland
+                    if (tCurrent - tContract > 500){
                         mode = PRELAND;
                         contractPrep = 0;
-                        for (int i=0; i<4; ++i){
-                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                        }
                     }
                     
 
-                break;
+                    break;
 
                 case PRELAND:
-                    for (int i=0; i<4; ++i){
-                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-                    }
                     for (int i = 0; i<4; ++i){
                         leg[i].setGain(ANGLE, , 0.005);
                         leg[i].setPosition(ANGLE,landAng);
@@ -307,17 +283,12 @@ public:
                     if (almostEq(leg[0].getPosition(EXTENSION), landExt) ||
                         almostEq(leg[1].getPosition(EXTENSION), landExt)){
                         mode = LAND;
-                        contractPrep = 0;
-                        for (int i=0; i<4; ++i){
-                            P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
-                        }
                     }
+                    break;
 
 
                 case LAND:
-                    for (int i=0; i<4; ++i){
-                        P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
-                    }
+                    // may use acceleration for determining whether robot landed
                     static int counter = 0;
                     ac_x[counter] = S->imu.linear_acceleration.x;
                     forwardAccel = avg(ac_x,filterSize);
@@ -329,6 +300,7 @@ public:
                         landCounterFull = 1;
                     }
                 
+                    // tries to extend legs forward to brace for landing
                     for (int i = 0; i<4; ++i){
                         leg[i].setGain(ANGLE, , 0.005);
                         leg[i].setPosition(ANGLE,landAng);
@@ -336,20 +308,37 @@ public:
                         leg[i].setPosition(EXTENSION,landExt);
                     }
 
+                    // checks how much the leg has contracted
+                    // front legs
                     ext0 = leg[0].getPosition(EXTENSION);
                     ang0 = leg[0].getPosition(ANGLE);
                     ext1 = leg[1].getPosition(EXTENSION);
                     ang1 = leg[1].getPosition(ANGLE);
+                    // reference x and y are determined by landAng and landExt
+                    xRef = landExt*fastcos(landAng);
+                    yRef = landExt*fastsin(landAng);
+
                     float x0 = ext0*fastcos(ang0);
                     float y0 = ext0*fastsin(ang0);
                     float x1 = ext1*fastcos(ang1);
                     float y1 = ext1*fastsin(ang1);
                     float diff0 = fastsqrt((x0-xRef)*(x0-xRef) + (y0-yRef)*(y0-yRef));
                     float diff1 = fastsqrt((x1-xRef)*(x1-xRef) + (y1-yRef)*(y1-yRef));
+                    
+                    if (diff0 > 0.05 || diff1 > 0.05){
+                        hasLanded = 1;
+                    }
 
+                    // is stable
+                    if (hasLanded && (ang0 > 0 || ang1 > 0){
+                        mode = POSTLAND;
+                        landCounterFull = 0;
+                        counter = 0;
+                    }
 
+                    // tail stuff
                     if (hasLanded){ // use tail to bring back body position
-                        if (joint[8].getPosition() < HALF_PI){
+                        if (joint[8].getPosition() < 0){
                             joint[8].setOpenLoop(0.6);
                         } else{
                             joint[8].setGain(0.1, 0.006);
@@ -361,7 +350,20 @@ public:
                     }
                     counter = (counter+1)%filterSize;
                
-                break;
+                    break;
+                case POSTLAND:
+                    // forward momentum has been removed
+
+                    // legs should just stand like normal
+                    for (int i=0; i<4; ++i){
+                        leg[i].setGain(ANGLE,1, 0.005);
+                        leg[i].setGain(EXTENSION,.3, 0.005);
+                        leg[i].setPosition(ANGLE,standAng);
+                        leg[i].setPosition(EXTENSION,standExt);
+                    }
+                    // tail should try to go upright
+                    joint[8].setGain(0.2,0.006);
+                    joint[8].setPosition(0);
             }
 
         }
@@ -376,6 +378,8 @@ public:
             contractPrep = 0;
             landPrep = 0;
             extendPrep = 0;
+            landCounterFull = 0;
+            counter = 0;
             for (int i = 0; i<4; i++){
                 leg[i].setGain(ANGLE,.9);
                 leg[i].setGain(EXTENSION,.3);
