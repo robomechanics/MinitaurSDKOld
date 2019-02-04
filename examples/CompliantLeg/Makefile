@@ -1,6 +1,6 @@
 
 # Select the serial port (e.g. COM4, /dev/tty.usbserial-*, /dev/ttyUSB*)
-PORT=/dev/ttyS4
+PORT=/dev/ttyUSB0
 # Select the robot (MINITAUR, or MINITAUR_E)
 ROBOT=MINITAUR
 

@@ -1,29 +1,31 @@
 #include <math.h>
+#include <stdio.h>
+#include <SDK.h>
 #include <vector>
 #include <Motor.h>
 #include <ReorientableBehavior.h>
 using namespace std;
 
+#define numMotors 10
+#define numSamplesPos 10
+#define numSamplesVel 25
+
 class minitaurVelocity
 {
-private:
-	int numMotors = 8;
-	int numSamplesPos = 10;
-	int numSamplesVel = 25;
+public:
 	int indexPos = 0;
 	int indexVel = 0;
 	bool posFilled = false;
 	bool velFilled = false;
-	vector<uint32_t> tRecord;
-	vector<float> posRecord;
-	vector<float> velRecord;
-	void initVectors();
-	float median(vector<float> *vec,int start,int length);
+	uint32_t lastT = 0;
+	uint32_t tRecord[numSamplesPos];
+	float posRecord[numSamplesPos*numMotors];
+	float velRecord[numMotors*numSamplesVel];
+	float median(float *vec,int start,int length);
 public:
 	minitaurVelocity();
 	void init();
-	void init(int numMotors);
-	void init(int _numMotors,int _numSamplesPos, int _numSamplesVel);
 	void updateVelocity();
-	vector<float> filteredVel;
+	void dumpData();
+	float filteredVel[numMotors];
 };

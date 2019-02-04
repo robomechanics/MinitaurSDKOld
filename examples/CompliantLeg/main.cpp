@@ -13,10 +13,12 @@
 #include "minitaurVelocity.h"
 using namespace std;
 
+#define arraySize 500
+
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
 //const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
@@ -24,7 +26,7 @@ const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679
 uint32_t lastUpdatePrintTime = 0;
 
 void interpData(uint32_t *x, float *y, int length);
-void expSmooth(float *y, int length, float weight);
+float wrap(float ang);
 
 // State machine representation of behavior
 enum SWMode
@@ -33,6 +35,7 @@ enum SWMode
 	STAND,
 	FrontLegSweep,
 	FrontLegSweepPrep,
+	FrontLegSweepPrepReturn,
 	inContact,
 	processData
 };
@@ -55,12 +58,12 @@ public:
 	float contactY = 0;
 	float contactLc = 0;
 	int contactSamples = 0;
-	int numSamples = 1000;
-	float q1Record[1000];
-	float q2Record[1000];
-	float q1DotRecord[1000];
-	float q2DotRecord[1000];
-	uint32_t tRecord[1000];
+	int numSamples = arraySize;
+	float q1Record[arraySize];
+	float q2Record[arraySize];
+	float q1DotRecord[arraySize];
+	float q2DotRecord[arraySize];
+	uint32_t tRecord[arraySize];
 	float q1DotLast;
 	float q2DotLast;
 	int sampleCounter;
@@ -185,7 +188,7 @@ public:
 					angCommand[i] = joint[i].getPosition();
 				}
 			}
-			float tempComm = 2.5;
+			float tempComm = 2.5+PI;
 			if (abs(tempComm-angCommand[6]) > angleRate*(S->millis-tLast))
 			{
 				if (tempComm > angCommand[6])
@@ -195,7 +198,7 @@ public:
 			}
 			else
 				angCommand[6] = tempComm;
-			tempComm = 3.1;
+			tempComm = 3.1-PI;
 			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
 			{
 				if (tempComm > angCommand[7])
@@ -207,16 +210,55 @@ public:
 				angCommand[7] = tempComm;
 			
 			joint[6].setGain(1,0.01);
-			joint[6].setPosition(angCommand[6]);
+			joint[6].setPosition(wrap(angCommand[6]));
 			joint[7].setGain(1,0.01);
-			joint[7].setPosition(angCommand[7]);
+			joint[7].setPosition(wrap(angCommand[7]));
 			
 			tLast = S->millis;
 			lastMode = FrontLegSweepPrep;
 		}
+		else if (mode == FrontLegSweepPrepReturn)
+		{
+			if (lastMode != FrontLegSweepPrepReturn)
+			{
+				for (int i = 0; i < P->joints_count; ++i)
+				{
+					joint[i].setOpenLoop(0);
+					angCommand[i] = joint[i].getPosition();
+				}
+			}
+			float tempComm = 2.5-PI;
+			if (abs(tempComm-angCommand[6]) > angleRate*(S->millis-tLast))
+			{
+				if (tempComm > angCommand[6])
+					angCommand[6] = angCommand[6] + angleRate*(S->millis-tLast);
+				else
+					angCommand[6] = angCommand[6] - angleRate*(S->millis-tLast);
+			}
+			else
+				angCommand[6] = tempComm;
+			tempComm = 3.1-PI;
+			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
+			{
+				if (tempComm > angCommand[7])
+					angCommand[7] = angCommand[7] + angleRate*(S->millis-tLast);
+				else
+					angCommand[7] = angCommand[7] - angleRate*(S->millis-tLast);
+			}
+			else
+				angCommand[7] = tempComm;
+			
+			joint[6].setGain(1,0.01);
+			joint[6].setPosition(wrap(angCommand[6]));
+			joint[7].setGain(1,0.01);
+			joint[7].setPosition(wrap(angCommand[7]));
+			
+			tLast = S->millis;
+			lastMode = FrontLegSweepPrepReturn;
+		}
 		else if (mode == FrontLegSweep)
 		{
-			float tempComm = 1.5;
+			float tempComm = 1.5-PI;
 			angleRate = 0.0005;
 			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
 			{
@@ -228,9 +270,9 @@ public:
 			else
 				angCommand[7] = tempComm;
 			joint[6].setGain(0.1,0);
-			joint[6].setPosition(angCommand[6]);
+			joint[6].setPosition(wrap(angCommand[6]));
 			joint[7].setGain(0.6,0);
-			joint[7].setPosition(angCommand[7]);
+			joint[7].setPosition(wrap(angCommand[7]));
 
 			tLast =  S->millis;
 			lastMode = FrontLegSweep;
@@ -239,7 +281,7 @@ public:
 		}
 		else if (mode == inContact)
 		{
-			float tempComm = 1.5;
+			float tempComm = 1.5-PI;
 			angleRate = 0.0005;
 			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
 			{
@@ -251,9 +293,9 @@ public:
 			else
 				angCommand[7] = tempComm;
 			joint[6].setGain(0.1,0);
-			joint[6].setPosition(angCommand[6]);
+			joint[6].setPosition(wrap(angCommand[6]));
 			joint[7].setGain(0.6,0);
-			joint[7].setPosition(angCommand[7]);
+			joint[7].setPosition(wrap(angCommand[7]));
 			tLast = S->millis;
 			if (lastMode != inContact)
 			{
@@ -325,7 +367,11 @@ public:
 
 			}
 			if (sampleCounter == numSamples)
-				mode = FrontLegSweepPrep;
+			{
+				mode = FrontLegSweepPrepReturn;
+				printf("\n\n\n");
+				motorVel.dumpData();
+			}
 		}
 	}
 
@@ -343,11 +389,6 @@ CompliantLeg *compLegPointer;
 
 void debug()
 {
-	for (int i = 0; i < P->joints_count; ++i)
-	{
-		printf("Motor %d Pos: %f  , ",i, joint[i].getPosition());
-	}
-	printf("\n");
 }
 
 int main(int argc, char *argv[])
@@ -363,7 +404,7 @@ int main(int argc, char *argv[])
 #else
 #error "Define robot type in preprocessor"
 #endif
-	setDebugRate(20);
+	setDebugRate(1);
 
 	// Declare instance of our behavior
 	CompliantLeg compLeg;
@@ -402,4 +443,12 @@ void interpData(uint32_t *x, float *y, int length)
 		}
 		i = i+j;
 	}
+}
+
+float wrap(float ang)
+{
+	float post = ang - floor(ang/(2*PI))*2*PI;
+	if (post > PI)
+		post = post - 2*PI;
+	return post;
 }

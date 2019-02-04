@@ -1,12 +1,13 @@
 #include "minitaurVelocity.h"
 
+
 minitaurVelocity::minitaurVelocity(){}
 
 void minitaurVelocity::init()
 {
-	initVectors();
 }
 
+/*
 void minitaurVelocity::init(int _numMotors)
 {
 	numMotors = _numMotors;
@@ -20,6 +21,7 @@ void minitaurVelocity::init(int _numMotors,int _numSamplesPos, int _numSamplesVe
 	numSamplesVel = _numSamplesVel;
 	initVectors();
 }
+
 
 void minitaurVelocity::initVectors()
 {
@@ -36,14 +38,16 @@ void minitaurVelocity::initVectors()
 	for (int i = 0;i < numSamplesPos;i++)
 		tRecord.push_back(0);
 }
+*/
 
 void minitaurVelocity::updateVelocity()
 {
 	//Record time and motor position
+	if (lastT - clockTimeUS == 0)
+		return;
 	tRecord[indexPos] = clockTimeUS;
 	for (int i = 0; i < numMotors; i++)
 		posRecord[indexPos+numMotors*i] = joint[i].getPosition();
-
 	//Check if enough samples of motor positions has been taken to start calculating velocity
 	posFilled = posFilled || (indexPos == (numSamplesPos-1));
 	//Convert motor position to raw velocity (given frame of size numSamplesPos steps)
@@ -58,7 +62,7 @@ void minitaurVelocity::updateVelocity()
 	if (velFilled)
 	{
 		for (int i = 0; i < numMotors; i++)
-			filteredVel[i] = median(&velRecord,numMotors*i,numSamplesVel);
+			filteredVel[i] = median(velRecord,numMotors*i,numSamplesVel);
 	}
 	indexPos++;
 	indexPos = indexPos%numSamplesPos;
@@ -66,7 +70,7 @@ void minitaurVelocity::updateVelocity()
 	indexVel = indexVel%numSamplesVel;
 }
 
-float minitaurVelocity::median(vector<float> *vec,int start,int length)
+float minitaurVelocity::median(float *vec,int start,int length)
 {
 	//First copy vec to sorted while sorting the data
 	float sorted[length];
@@ -76,12 +80,12 @@ float minitaurVelocity::median(vector<float> *vec,int start,int length)
 		for (int j = 0; j < i+1;j++)
 		{
 			index = j;
-			if ((*vec)[i+start] < sorted[j])
+			if (vec[i+start] < sorted[j])
 				break;
 		}
 		for (int k = length;k > index;k--)
 			sorted[k] = sorted[k-1];
-		sorted[index] = (*vec)[i+start];
+		sorted[index] = vec[i+start];
 	}
 	if (length%2)
 	{
@@ -89,4 +93,44 @@ float minitaurVelocity::median(vector<float> *vec,int start,int length)
 	}
 	else
 		return (sorted[length/2]+sorted[length/2-1])/2;
+}
+
+void minitaurVelocity::dumpData()
+{
+	uint32_t tWait = 5000;
+	printf("tRecord =  [");
+	for (int i = 0; i < numSamplesPos;i++)
+	{
+		printf("%lu, ",tRecord[i]);
+		uint32_t timeLastPrint = clockTimeUS;
+		printf("%lu, ", clockTimeUS - timeLastPrint);
+		while ((clockTimeUS - timeLastPrint) < tWait)
+		{
+			printf("%lu, ", clockTimeUS - timeLastPrint);
+		}
+	}
+	printf("\n");
+	printf("posRecord = [");
+	for (int i = 0; i < numSamplesPos*numMotors;i++)
+	{
+		printf("%f, ",posRecord[i]);
+		//uint32_t timeLastPrint = clockTimeUS;
+		//while (clockTimeUS - timeLastPrint < tWait);
+	}
+	printf("\n");
+	printf("velRecord = [");
+	for (int i = 0; i < numMotors*numSamplesVel;i++)
+	{
+		printf("%f, ",velRecord[i]);
+		//uint32_t timeLastPrint = clockTimeUS;
+		//while (clockTimeUS - timeLastPrint < tWait);
+	}
+	printf("\n");
+	printf("filteredVel = [");
+	for (int i = 0; i < numMotors;i++)
+	{
+		printf("%f, ",filteredVel[i]);
+		//uint32_t timeLastPrint = clockTimeUS;
+		//while (clockTimeUS - timeLastPrint < tWait);
+	}
 }
