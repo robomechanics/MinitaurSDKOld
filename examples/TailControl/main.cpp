@@ -68,6 +68,8 @@ public:
 
     float xRef, yRef; // reference x and y values
     float ext0, ext1; // extensions of legs 0 and 1
+    float ang0, ang1; // angles fo legs 0 and 1
+    float x0, y0, x1, y1, diff0, diff1; // used to calculate leg end effector positions
 
 
     float standAng = 0.1;
@@ -196,6 +198,7 @@ public:
                 set position on leg joints
                 want to have it so that robot is airborne when tail is upright
                 */
+                    stateflag = 3;
                     if (extendPrep == 0){ // sets a time when extending starts
                         tExtend = tCurrent;
                         extendPrep = 1;
@@ -205,7 +208,8 @@ public:
                     if (true){ //if you want to do it without tail
                         // use setOpenLoop(1) to give maximum power
                         for (int i = 0; i<4; ++i){
-                            leg[i].setOpenLoop(1);
+                            leg[i].setOpenLoop(EXTENSION, 1);
+                            leg[i].setPosition(ANGLE, squatAng);
                         }
                     }
                     
@@ -233,6 +237,7 @@ public:
                 take legs in
                 keep flicking tail
                 */
+                    stateflag = 4;
                     if (contractPrep == 0){
                         tContract = tCurrent;
                         contractPrep = 1;
@@ -274,10 +279,11 @@ public:
                     break;
 
                 case PRELAND:
+                    stateflag = 5;
                     for (int i = 0; i<4; ++i){
-                        leg[i].setGain(ANGLE, , 0.005);
+                        leg[i].setGain(ANGLE, 0.5, 0.005);
                         leg[i].setPosition(ANGLE,landAng);
-                        leg[i].setGain(EXTENSION,.4);
+                        leg[i].setGain(EXTENSION,.5, 0.005);
                         leg[i].setPosition(EXTENSION,landExt);
                     }
                     if (almostEq(leg[0].getPosition(EXTENSION), landExt) ||
@@ -288,6 +294,7 @@ public:
 
 
                 case LAND:
+                    stateflag = 6;
                     // may use acceleration for determining whether robot landed
                     static int counter = 0;
                     ac_x[counter] = S->imu.linear_acceleration.x;
@@ -302,9 +309,9 @@ public:
                 
                     // tries to extend legs forward to brace for landing
                     for (int i = 0; i<4; ++i){
-                        leg[i].setGain(ANGLE, , 0.005);
+                        leg[i].setGain(ANGLE, 0.5, 0.005);
                         leg[i].setPosition(ANGLE,landAng);
-                        leg[i].setGain(EXTENSION,.4);
+                        leg[i].setGain(EXTENSION,20);
                         leg[i].setPosition(EXTENSION,landExt);
                     }
 
@@ -318,19 +325,19 @@ public:
                     xRef = landExt*fastcos(landAng);
                     yRef = landExt*fastsin(landAng);
 
-                    float x0 = ext0*fastcos(ang0);
-                    float y0 = ext0*fastsin(ang0);
-                    float x1 = ext1*fastcos(ang1);
-                    float y1 = ext1*fastsin(ang1);
-                    float diff0 = fastsqrt((x0-xRef)*(x0-xRef) + (y0-yRef)*(y0-yRef));
-                    float diff1 = fastsqrt((x1-xRef)*(x1-xRef) + (y1-yRef)*(y1-yRef));
+                    x0 = ext0*fastcos(ang0);
+                    y0 = ext0*fastsin(ang0);
+                    x1 = ext1*fastcos(ang1);
+                    y1 = ext1*fastsin(ang1);
+                    diff0 = fastsqrt((x0-xRef)*(x0-xRef) + (y0-yRef)*(y0-yRef));
+                    diff1 = fastsqrt((x1-xRef)*(x1-xRef) + (y1-yRef)*(y1-yRef));
                     
                     if (diff0 > 0.05 || diff1 > 0.05){
                         hasLanded = 1;
                     }
 
                     // is stable
-                    if (hasLanded && (ang0 > 0 || ang1 > 0){
+                    if (hasLanded && (ang0 > 0 || ang1 > 0)){
                         mode = POSTLAND;
                         landCounterFull = 0;
                         counter = 0;
@@ -352,6 +359,7 @@ public:
                
                     break;
                 case POSTLAND:
+                    stateflag = 7;
                     // forward momentum has been removed
 
                     // legs should just stand like normal
@@ -364,6 +372,7 @@ public:
                     // tail should try to go upright
                     joint[8].setGain(0.2,0.006);
                     joint[8].setPosition(0);
+                    break;
             }
 
         }
@@ -371,7 +380,6 @@ public:
         else if (C->behavior.mode == BehaviorMode_STOP){
             stateflag = 0;
             hasLanded = 0;
-            isStable = 0;
             standPrep = 0;
             squatPrep = 0;
             squatReady = 0;
@@ -379,12 +387,11 @@ public:
             landPrep = 0;
             extendPrep = 0;
             landCounterFull = 0;
-            counter = 0;
             for (int i = 0; i<4; i++){
-                leg[i].setGain(ANGLE,.9);
-                leg[i].setGain(EXTENSION,.3);
+                leg[i].setGain(ANGLE,.9, 0.005);
+                leg[i].setGain(EXTENSION,.3, 0.005);
                 leg[i].setPosition(ANGLE,standAng);
-                leg[i].setPosition(EXTENSION,standEx);
+                leg[i].setPosition(EXTENSION,standExt);
             }
 
             joint[8].setOpenLoop(0);
@@ -425,7 +432,7 @@ void debug() {
     float r, th, dr, dth, q0, q1, ang, ext, df; 
     float roll, pitch, yaw;
     printf("state = %d\n", stateflag);
-    /*
+    
     for (int i = 0; i < 4; ++i)
     {
         q0 = leg[i].q0; 
@@ -436,14 +443,12 @@ void debug() {
         dth = leg[i].getVelocity(ANGLE);
         df = leg[i].getOpenLoop(0);
         printf("limb %d:, angle = %f, extension = %f, power = %f\n", i, th, r, df);
-    }*/
-    for (int i = 0; i<8; ++i){
-        df = joint[i].getOpenLoop();
-        printf("joint %d, power = %f\n", i, df);
     }
-    pitch = S->imu.euler.y;
-    printf("pitch = %f\n", pitch);
-    printf(" \n");
+    /*for (int i = 0; i<8; ++i){
+        df = joint[i].getOpenLoop();
+        printf("joint %d, power = %f\t", i, df);
+    }
+    printf(" \n");*/
 }
 
 
