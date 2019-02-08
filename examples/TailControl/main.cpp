@@ -84,9 +84,9 @@ public:
     float squatExt = 1.0;
     float contractAng = standAng;
     float contractExt = squatExt;
-    float tailJumpAng = 0.6;
-    float tailJumpFrontAng = 1.0;
-    float landRefAng = radians(-20);
+    float tailJumpAng = 0.6; //34 degrees forward
+    float tailJumpFrontAng = 0.7; // degrees forward
+    float landRefAng = radians(-25);
     float landAng; // calculated using pitch and landRefAng
     float landExt = 0.17; // Important, this one is in meters instead of angle
 
@@ -213,33 +213,23 @@ public:
                         extendPrep = 1;
                     }
 
-                    if (tailPos < tailJumpAng){
-                    //if (true){ //if you want to do it without tail
-                        // use setOpenLoop(1) to give maximum power
-                        for (int i = 0; i<4; ++i){
-                            if (i==0 || i==2){
-                                leg[i].setOpenLoop(EXTENSION, 2.0); // front legs work more
-                            } else{
-                                leg[i].setOpenLoop(EXTENSION, 1.6);
-                            }
-                            leg[i].setPosition(ANGLE, squatAng);
-                        }
-                    }
                     for (int i = 0; i<4; ++i){
                         if (i==0 || i==2){ // front legs should do more work
                             if (tailPos < tailJumpAng){
-                                leg[i].setOpenLoop(EXTENSION, 1.8); 
-                            } else if (tailPos < tailFrontAng){
-                                leg[i].setOpenLoop(EXTENSION, 1.0);
+                                leg[i].setOpenLoop(EXTENSION, 2.0); 
+                            } else if (tailPos < tailJumpFrontAng){
+                                leg[i].setOpenLoop(EXTENSION, 1.5);
                             }
                         } else { // back legs start later
-                            leg[i].setOpenLoop(EXTENSION, 1.8);
+                            if (tailPos < tailJumpAng){
+                                leg[i].setOpenLoop(EXTENSION, 2.0);
+                            }
                         }
                     }
                     
                     // tail
                     if (useTail){
-                        joint[8].setOpenLoop(-0.7);   
+                        joint[8].setOpenLoop(-1.0);   
                     }
                     
                     //exit condition 1: if back legs are nearly fully extended
@@ -267,18 +257,18 @@ public:
                         contractPrep = 1;
                     }
 
-                    if (tailPos < (-PI/2 + 0.1)){// past limit
+                    if (tailPos < (-PI/2 + 0.3)){// past limit
                         tailReachedEnd = 1;
                     }
                     if (tailReachedEnd == 0){ //going forward
                         if (tailPos > (-PI/4)){ // not yet near limit
-                            joint[8].setOpenLoop(-0.7);
+                            joint[8].setOpenLoop(-1.0);
                         } else{ // near limit
-                            tau = -0.7-0.05*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                            tau = -0.7-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
                             joint[8].setOpenLoop(tau);
                         }
                     } else { // tail has reached end
-                        joint[8].setOpenLoop(0.5); // swing tail forward
+                        joint[8].setOpenLoop(0.7); // swing tail forward
                     }
                         
                     // leg stuff
@@ -307,7 +297,7 @@ public:
 
                 case FLIGHT:
                     stateflag = 5;
-                    landAng = -S->euler.y + landRefAng;
+                    landAng = -S->imu.euler.y + landRefAng;
                     for (int i = 0; i<4; ++i){
                         leg[i].setGain(ANGLE, 0.7, 0.02);
                         leg[i].setPosition(ANGLE,landAng);
@@ -316,14 +306,14 @@ public:
                     }
 
                     // tail stuff
-                    if (tailPos < (-PI/2 + 0.1)){// past limit
+                    if (tailPos < (-PI/2 + 0.3)){// past limit
                         tailReachedEnd = 1;
                     }
                     if (tailReachedEnd == 0){ //going forward
                         if (tailPos > (-PI/4)){ // not yet near limit
-                            joint[8].setOpenLoop(-0.7);
+                            joint[8].setOpenLoop(-1.0);
                         } else{ // near limit
-                            tau = -0.7-0.05*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                            tau = -1.0-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
                             joint[8].setOpenLoop(tau);
                         }
                     } else {
@@ -339,7 +329,7 @@ public:
 
                 case LAND:
                     stateflag = 6;
-                    landAng = -S->euler.y + landRefAng;
+                    landAng = -S->imu.euler.y + landRefAng;
                     if (hasLanded == 0){
                         stateflag = 6;
                     } else {
@@ -396,22 +386,22 @@ public:
                     }
 
                     // tail stuff
-                    if ((tailReachedEnd == 0 && tailPos < (-PI/2 + 0.1))|| hasLanded){// past limit or has landed
+                    if ((tailReachedEnd == 0 && tailPos < (-PI/2 + 0.3))|| hasLanded){// past limit or has landed
                         tailReachedEnd = 1;
                     }
                     if (tailReachedEnd == 0){ //swing tail back normally
                         if (tailPos > (-PI/4)){ // not yet near limit
-                            joint[8].setOpenLoop(-0.7);
+                            joint[8].setOpenLoop(-1.0);
                         } else{ // near limit
-                            tau = -0.5-0.05*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                            tau = -1.0-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
                             joint[8].setOpenLoop(tau);
                         }
                     } else { // tail has swung all the way back
-                        if (tailDone == 0 && tailPos < radians(45)){ // 
+                        if (tailDone == 0 && tailPos < radians(60)){ // 
                             joint[8].setOpenLoop(0.7); // swing tail back forward
                         } else {
                             tailDone = 1;
-                            joint[8].setGain(0.2, 0.006);
+                            joint[8].setGain(0.3, 0.006);
                             joint[8].setPosition(0);
                         }
                     }
