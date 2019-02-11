@@ -271,15 +271,15 @@ float rmlLimb::getOpenLoop(int getAng)
 void rmlLimb::setOpenLoop(int getAng, float f)
 {
 
-	if (f < -1)
+	if (f < -2)
 	{
 		printf("the force must be between -1 and 1 !!!\n");
-		f = -1.f; 
+		f = -2.f; 
 	}
-	else if (f > 1)
+	else if (f > 2)
 	{
 		printf("the force must be between -1 and 1 !!!\n");
-		f = 1.f; 
+		f = 2.f; 
 	}
 
 	if (getAng == 0) // EXTENSION
