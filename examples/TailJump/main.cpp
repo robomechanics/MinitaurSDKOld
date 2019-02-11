@@ -85,13 +85,13 @@ public:
     float contractAng = standAng;
     float contractExt = squatExt;
     float tailJumpAng = 0.6; //34 degrees forward
-    float tailJumpFrontAng = 0.7; // degrees forward
-    float landRefAng = radians(-25);
+    float tailJumpFrontAng = 0.75; // degrees forward
+    float landRefAng = radians(-30);
     float landAng; // calculated using pitch and landRefAng
     float landExt = 0.17; // Important, this one is in meters instead of angle
 
     //IMU arrays for averaging (low pass filter)
-    static const int filterSize = 12;
+    static const int filterSize = 10;
     float ac_x[filterSize];
     float ac_z[filterSize];
 
@@ -187,7 +187,7 @@ public:
                         } else if (tailPos > PI/2){
                             joint[8].setOpenLoop(-0.15);
                         }else{
-                            tau = 0.1-0.08*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                            tau = 0.1-0.05*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
                             joint[8].setOpenLoop(tau);
                         }
                     }
@@ -218,7 +218,7 @@ public:
                             if (tailPos < tailJumpAng){
                                 leg[i].setOpenLoop(EXTENSION, 2.0); 
                             } else if (tailPos < tailJumpFrontAng){
-                                leg[i].setOpenLoop(EXTENSION, 1.5);
+                                leg[i].setOpenLoop(EXTENSION, 2.0);
                             }
                         } else { // back legs start later
                             if (tailPos < tailJumpAng){
@@ -257,20 +257,21 @@ public:
                         contractPrep = 1;
                     }
 
-                    if (tailPos < (-PI/2 + 0.3)){// past limit
-                        tailReachedEnd = 1;
-                    }
-                    if (tailReachedEnd == 0){ //going forward
-                        if (tailPos > (-PI/4)){ // not yet near limit
-                            joint[8].setOpenLoop(-1.0);
-                        } else{ // near limit
-                            tau = -0.7-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
-                            joint[8].setOpenLoop(tau);
+                    if (useTail){
+                        if (tailPos < (-PI/2 + 0.3)){// past limit
+                            tailReachedEnd = 1;
                         }
-                    } else { // tail has reached end
-                        joint[8].setOpenLoop(0.7); // swing tail forward
-                    }
-                        
+                        if (tailReachedEnd == 0){ //going forward
+                            if (tailPos > (-PI/4)){ // not yet near limit
+                                joint[8].setOpenLoop(-1.0);
+                            } else{ // near limit
+                                tau = -0.7-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                                joint[8].setOpenLoop(tau);
+                            }
+                        } else { // tail has reached end
+                            joint[8].setOpenLoop(0.7); // swing tail forward
+                        }
+                    } 
                     // leg stuff
                     for (int i = 0; i<4; ++i){
                         leg[i].setGain(ANGLE,0.5, 0.005);
@@ -306,18 +307,20 @@ public:
                     }
 
                     // tail stuff
-                    if (tailPos < (-PI/2 + 0.3)){// past limit
-                        tailReachedEnd = 1;
-                    }
-                    if (tailReachedEnd == 0){ //going forward
-                        if (tailPos > (-PI/4)){ // not yet near limit
-                            joint[8].setOpenLoop(-1.0);
-                        } else{ // near limit
-                            tau = -1.0-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
-                            joint[8].setOpenLoop(tau);
+                    if (useTail){
+                        if (tailPos < (-PI/2 + 0.3)){// past limit
+                            tailReachedEnd = 1;
                         }
-                    } else {
-                        joint[8].setOpenLoop(0.7); // swing tail back forward
+                        if (tailReachedEnd == 0){ //going forward
+                            if (tailPos > (-PI/4)){ // not yet near limit
+                                joint[8].setOpenLoop(-1.0);
+                            } else{ // near limit
+                                tau = -1.0-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                                joint[8].setOpenLoop(tau);
+                            }
+                        } else {
+                            joint[8].setOpenLoop(0.7); // swing tail back forward
+                        }
                     }
 
                     if (almostEq(leg[0].getPosition(EXTENSION), landExt, 0.02) &&
@@ -349,7 +352,7 @@ public:
                 
                     // tries to extend legs forward to brace for landing
                     for (int i = 0; i<4; ++i){
-                        leg[i].setGain(ANGLE, 0.7, 0.02);
+                        leg[i].setGain(ANGLE, 0.7, 0.03);
                         leg[i].setPosition(ANGLE,landAng);
                         leg[i].setGain(EXTENSION,55, 0.1);
                         leg[i].setPosition(EXTENSION,landExt);
@@ -386,23 +389,25 @@ public:
                     }
 
                     // tail stuff
-                    if ((tailReachedEnd == 0 && tailPos < (-PI/2 + 0.3))|| hasLanded){// past limit or has landed
-                        tailReachedEnd = 1;
-                    }
-                    if (tailReachedEnd == 0){ //swing tail back normally
-                        if (tailPos > (-PI/4)){ // not yet near limit
-                            joint[8].setOpenLoop(-1.0);
-                        } else{ // near limit
-                            tau = -1.0-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
-                            joint[8].setOpenLoop(tau);
+                    if (useTail){
+                        if ((tailReachedEnd == 0 && tailPos < (-PI/2 + 0.3))|| hasLanded){// past limit or has landed
+                            tailReachedEnd = 1;
                         }
-                    } else { // tail has swung all the way back
-                        if (tailDone == 0 && tailPos < radians(60)){ // 
-                            joint[8].setOpenLoop(0.7); // swing tail back forward
-                        } else {
-                            tailDone = 1;
-                            joint[8].setGain(0.3, 0.006);
-                            joint[8].setPosition(0);
+                        if (tailReachedEnd == 0){ //swing tail back normally
+                            if (tailPos > (-PI/4)){ // not yet near limit
+                                joint[8].setOpenLoop(-1.0);
+                            } else{ // near limit
+                                tau = -1.0-0.1*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
+                                joint[8].setOpenLoop(tau);
+                            }
+                        } else { // tail has swung all the way back
+                            if (tailDone == 0 && tailPos < radians(60)){ // 
+                                joint[8].setOpenLoop(0.7); // swing tail back forward
+                            } else {
+                                tailDone = 1;
+                                joint[8].setGain(0.3, 0.006);
+                                joint[8].setPosition(0);
+                            }
                         }
                     }
                     counter = (counter+1)%filterSize;
@@ -420,8 +425,10 @@ public:
                         leg[i].setPosition(EXTENSION,standExt);
                     }
                     // tail should try to go upright
-                    joint[8].setGain(0.2,0.006);
-                    joint[8].setPosition(0);
+                    if (useTail){
+                        joint[8].setGain(0.2,0.006);
+                        joint[8].setPosition(0);
+                    }
                     break;
             }
 
@@ -447,8 +454,11 @@ public:
                 leg[i].setPosition(EXTENSION,standExt);
             }
 
-            joint[8].setGain(0.5, 0.005);
-            joint[8].setPosition(0);
+            if (useTail){
+                joint[8].setGain(0.5, 0.005);
+                joint[8].setPosition(0);
+            }
+            
             /*
             if (tailPos > 0.1 && tailPos < PI/2){
                 tau = -0.1*logf((tailPos+PI/2)/(PI/2-tailPos));
