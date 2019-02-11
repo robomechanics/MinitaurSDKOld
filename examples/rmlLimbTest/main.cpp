@@ -9,18 +9,19 @@
 #include <math.h>
 #include <Motor.h>
 #include <ReorientableBehavior.h>
+#include "rmlLimb.h"
 
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-<<<<<<< HEAD
-// const float motZeros[8] = {2.570, 2.036, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
 const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
-=======
-const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
->>>>>>> cf144770af5e34d59cd9d4ef8f47088c353703f4
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
+
+rmlLimb RMLlimb[4]; 
+
+float fr = 0;
+float fth = 0;
 
 // State machine representation of behavior
 enum FHMode
@@ -30,6 +31,7 @@ enum FHMode
 	FH_LEAP,
 	FH_LAND
 };
+
 
 /**
  * See "Getting started with the FirstHop behavior" in the documentation for a walk-through
@@ -46,6 +48,8 @@ public:
 	float exCmd;				 //The commanded leg extension
 	float extDes;				 //The desired leg extension
 	float angDes;				 // The desired leg angle
+
+	float q0,q1, r, th;
 
 	bool unitUpdated;
 
@@ -75,9 +79,48 @@ public:
 
 	void update()
 	{
+		for(int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].updateState();
+		}
+
 		if (isReorienting())
 			return;
-		C->mode = RobotCommand_Mode_LIMB;
+		C->mode = RobotCommand_Mode_JOINT;
+		P->limbs[0].type = LimbParams_Type_SYMM5BAR_EXT_M;
+
+
+		
+		RMLlimb[0].FK(joint[1].getPosition(),joint[0].getPosition(),r,th);
+		RMLlimb[0].IK(r,th,q1,q0);
+
+		// RMLlimb[0].setGain(EXTENSION, 150, 0);
+		// RMLlimb[0].setGain(ANGLE, 0.5, 0);
+		// RMLlimb[1].setGain(EXTENSION, 0, 0);
+		// RMLlimb[2].setGain(EXTENSION, 0, 0);
+		// RMLlimb[3].setGain(EXTENSION, 0, 0);
+
+		// RMLlimb[0].setPosition(EXTENSION, 0.2);
+		// RMLlimb[0].setPosition(ANGLE, 0);
+
+		for (int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].setGain(EXTENSION, 150);
+			RMLlimb[i].setPosition(EXTENSION, 0.2);
+		}
+
+		for(int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].updateCommand();
+		}
+
+		return;
+
+
+
+
+
+
 		if (mode == FH_SIT)
 		{
 			for (int i = 0; i < P->limbs_count; ++i)
@@ -322,14 +365,27 @@ public:
   }
 };
 
+// Declare instance of our behavior
+FirstHop firstHop;
+Dig dig;
+
 void debug()
 {
 
-	for (int i = 0; i < P->joints_count; ++i)
-		{
-			// Use setOpenLoop to exert the highest possible vertical force
-			printf("Motor %d command: %4.3f \n",i, joint[i].getOpenLoop());  
-		}
+	// for (int i = 0; i < P->joints_count; ++i)
+	// 	{
+	// 		// Use setOpenLoop to exert the highest possible vertical force
+	// 		printf("Motor %d command: %4.3f \n",i, joint[i].getOpenLoop());  
+	// 	}
+
+	printf("Joint 0,1: %6.3f, %6.3f  ", joint[0].getPosition(),joint[1].getPosition());
+	printf("Limb 0 ext, ang: %6.3f, %6.3f  ", RMLlimb[0].getPosition(EXTENSION),RMLlimb[0].getPosition(ANGLE));
+	printf("Limb 0 ext, ang: %6.3f, %6.3f  ", firstHop.r, firstHop.th);
+	printf("Joint 0,1: %6.3f, %6.3f \n", firstHop.q0, firstHop.q1);
+	// printf("Motor 0 cmd: %6.3f, Motor 1 cmd: %6.3f  ", joint[0].getOpenLoop(),joint[1].getOpenLoop());
+	// printf("Gains: %6.3f, %6.3f \n", RMLlimb[0].kpr, RMLlimb[0].kdr);
+	// printf("Motor 0 cmd: %4.3f, Motor 1 cmd: %4.3f \n", RMLlimb[0].ur,RMLlimb[0].uth);
+	// printf("Motor 3 ext, ang: %4.3f, %4.3f \n", RMLlimb[3].q0,RMLlimb[3].q1);
 }
 
 int main(int argc, char *argv[])
@@ -346,11 +402,15 @@ int main(int argc, char *argv[])
 #error "Define robot type in preprocessor"
 #endif
 
-	setDebugRate(1);
-
-	// Declare instance of our behavior
-	FirstHop firstHop;
-	Dig dig;
+	// float testPos = RMLlimb.getPos(0);
+	// int testSetOpen = RMLlimb.setOpenLoop(fr,fth);
+	// RMLlimb.setOpenLoop(fr,fth);
+	for(int i = 0; i<4; ++i)
+	{
+		RMLlimb[i].Init(i);
+	}
+ 
+	setDebugRate(8);
 
 	// Add our behavior to the behavior vector (Walk and Bound are already there)
 	behaviors.push_back(&firstHop);

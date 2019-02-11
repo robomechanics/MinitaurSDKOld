@@ -9,8 +9,12 @@
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
+<<<<<<< HEAD
 // const float motZeros[8] = {2.570, 2.036, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
 const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+=======
+const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+>>>>>>> cf144770af5e34d59cd9d4ef8f47088c353703f4
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
