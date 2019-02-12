@@ -11,7 +11,7 @@
 #include <Motor.h>
 #include <Behavior.h>
 
-#define MOT 0
+#define MOT 9
 
 char myData[32];
 float* myData_buf = (float*)myData;

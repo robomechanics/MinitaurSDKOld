@@ -256,10 +256,77 @@ void OldWalk::update() {
 
   // For inverted operation and roll/pitch recovery ---------------------------
   // 1) take it out of walking mode if not close to nominal
-  if (isReorienting()) {
-    this->mode = WM_REORIENT;
+  // if (isReorienting()) {
+  //   this->mode = WM_REORIENT;
+  //   return;
+  // }
+
+  if ((fabsf(S->imu.euler.x)>10.0*PI/180.0) && (mode == WM_WALK))
+  {
+    mode = WM_LEAP;
+    tLast = S->millis;
+    return;
+  } 
+  else if (mode == WM_LEAP)
+  {
+    // Check for minimum extension
+    float minExt = 0.0f;
+    for (int i = 0; i < P->limbs_count; ++i)
+    {
+      P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
+      minExt = (limb[i].getPosition(EXTENSION) > minExt) ? limb[i].getPosition(EXTENSION) : minExt;
+    }
+
+    for (int i = 0; i < P->limbs_count; ++i)
+    {
+      // Use setOpenLoop to exert the highest possible vertical force
+      limb[i].setOpenLoop(EXTENSION, 2);  
+      limb[i].setGain(ANGLE, 1.0, 0.03);
+      limb[i].setPosition(ANGLE, -S->imu.euler.y);
+      // After the mean limb angle passes 2.7 radians (note that we have changed the limb kinematics
+      // to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
+
+      
+
+      if (minExt > 2.5)
+      {
+        mode = WM_SIT;
+        tLast = S->millis;
+      }
+    }
     return;
   }
+  // else if (mode == WM_LAND)
+  // {
+  //   for (int i = 0; i < P->limbs_count; ++i)
+  //   {
+
+  //     // This updates the parameters struct to switch back into meters as its units.
+  //     P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
+  //     // Sets the commanded length for landing to 0.25 meters
+  //     float exCmd = 0.13;
+  //     // Sets the desired limb angle to be facing downward plus a limb splay in the front
+  //     // and back.
+  //     float angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
+
+  //     limb[i].setGain(ANGLE, 1.2, 0.03);
+  //     limb[i].setPosition(ANGLE, angDes);
+
+  //     limb[i].setGain(EXTENSION, 150, 5);
+  //     limb[i].setPosition(EXTENSION, exCmd);
+
+  //     // Use Limb::getForce for touchdown detection, and set a 20 millisecond
+  //     // grace period so that the limbs can settle to their landing extension,
+  //     // without their inertia triggering a false positive.
+
+  //     if (limb[i].getForce(EXTENSION) > 40 && S->millis - tLast > 200)
+  //     {
+  //       mode = WM_SIT;
+  //       tLast = S->millis;
+  //     }
+  //   }
+  //   return;
+  // }
 
   
   // for the rest of the code, either bInverted or bUpright is true; use either to check
