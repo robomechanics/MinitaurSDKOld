@@ -7,9 +7,9 @@
 using namespace std;
 
 #define tWait 50000
-#define numMotors 8
+#define numMotors 10
 #define numSamplesPos 10
-#define numSamplesVel 41
+#define numSamplesVel 11
 
 class minitaurVelocity
 {
