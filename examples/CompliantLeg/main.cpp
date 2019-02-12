@@ -13,7 +13,10 @@
 #include "minitaurVelocity.h"
 using namespace std;
 
-#define arraySize 500
+#define arraySize 600
+#define isAbove false
+#define thresh 250
+
 
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
@@ -22,7 +25,7 @@ const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}
 //const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
-#define timeBetweenUpdatePrints 5
+#define timeBetweenUpdatePrints 15
 uint32_t lastUpdatePrintTime = 0;
 
 void interpData(uint32_t *x, float *y, int length);
@@ -67,6 +70,7 @@ public:
 	float q1DotLast;
 	float q2DotLast;
 	int sampleCounter;
+	bool printFirstSection = true;
 
 
 	//Maximum difference between commanded and actual leg extension
@@ -188,7 +192,11 @@ public:
 					angCommand[i] = joint[i].getPosition();
 				}
 			}
-			float tempComm = 2.5+PI;
+			float tempComm;
+			if (isAbove)
+				tempComm = 2.5+PI;
+			else
+				tempComm = 2.5;
 			if (abs(tempComm-angCommand[6]) > angleRate*(S->millis-tLast))
 			{
 				if (tempComm > angCommand[6])
@@ -198,7 +206,10 @@ public:
 			}
 			else
 				angCommand[6] = tempComm;
-			tempComm = 3.1-PI;
+			if (isAbove)
+				tempComm = 3.1-PI;
+			else
+				tempComm = 3.1;
 			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
 			{
 				if (tempComm > angCommand[7])
@@ -258,7 +269,11 @@ public:
 		}
 		else if (mode == FrontLegSweep)
 		{
-			float tempComm = 1.5-PI;
+			float tempComm;
+			if (isAbove)
+				tempComm = 1.5-PI;
+			else
+				tempComm = 1.5;
 			angleRate = 0.0005;
 			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
 			{
@@ -281,7 +296,11 @@ public:
 		}
 		else if (mode == inContact)
 		{
-			float tempComm = 1.5-PI;
+			float tempComm;
+			if (isAbove)
+				tempComm = 1.5-PI;
+			else
+				tempComm = 1.5;
 			angleRate = 0.0005;
 			if (abs(tempComm-angCommand[7]) > angleRate*(S->millis-tLast))
 			{
@@ -305,12 +324,17 @@ public:
 				contactSamples = 0;
 				sampleCounter = 0;
 			}
-			q1Record[sampleCounter] = joint[7].getPosition();
-			q2Record[sampleCounter] = joint[6].getPosition();
-			q1DotRecord[sampleCounter] = motorVel.filteredVel[7];
-			q2DotRecord[sampleCounter] = motorVel.filteredVel[6];
-			tRecord[sampleCounter] = clockTimeUS;
-			sampleCounter++;
+			if (clockTimeUS-tRecord[max(sampleCounter-1,0)] > thresh)
+			{
+				q1Record[sampleCounter] = joint[7].getPosition();
+				q2Record[sampleCounter] = joint[6].getPosition();
+				q1DotRecord[sampleCounter] = joint[7].getVelocity();
+				q2DotRecord[sampleCounter] = joint[6].getVelocity();
+				//q1DotRecord[sampleCounter] = motorVel.filteredVel[7];
+				//q2DotRecord[sampleCounter] = motorVel.filteredVel[6];
+				tRecord[sampleCounter] = clockTimeUS;
+				sampleCounter++;
+			}
 			lastMode = inContact;
 			if (sampleCounter == numSamples)
 				mode = processData;
@@ -319,22 +343,38 @@ public:
 		{
 			if (lastMode != processData)
 			{
+				motorVel.resetDump();
 				sampleCounter = 0;
 			}
 			lastMode = processData;
-			int stepSize = 50000;
-			if ((S->millis - lastUpdatePrintTime) > timeBetweenUpdatePrints)
+			//int stepSize = 50000;
+			if (sampleCounter < numSamples && ((S->millis - lastUpdatePrintTime) > timeBetweenUpdatePrints))
 			{
 				lastUpdatePrintTime = S->millis;
 				float q1 = q1Record[sampleCounter];
 				float q2 = q2Record[sampleCounter];
+				if (isAbove)
+				{
+					q1 = q1Record[sampleCounter]+PI;
+					q2 = q2Record[sampleCounter]+PI;
+				}
 				float q1Dot = q1DotRecord[sampleCounter];
 				float q2Dot = q2DotRecord[sampleCounter];
 				contactLc = contactComp.findLc(q1,q2,q1Dot,q2Dot);
 				float compX,compY;
 				contactComp.LcToXY(q1,q2, contactLc,compX, compY);
-				printf("%lu,%f,%f,%f,%f,%f,%f,%f;\n",tRecord[sampleCounter],q1Record[sampleCounter],q2Record[sampleCounter],q1Dot,q2Dot,contactLc,compX,compY);
-				sampleCounter++;
+				//printf("%lu,%f,%f,%f,%f,%f,%f,%f;\n",tRecord[sampleCounter],q1,q2,q1Dot,q2Dot,contactLc,compX,compY);
+				if (printFirstSection)
+				{
+					printf("%lu,%f,%f,",tRecord[sampleCounter],q1,q2);
+					printFirstSection = false;
+				}
+				else
+				{
+					printf("%f,%f,%f,%f,%f;\n",q1Dot,q2Dot,contactLc,compX,compY);
+					printFirstSection = true;
+					sampleCounter++;
+				}
 				/*int forwardIndex = 1;
 				while (tRecord[sampleCounter+forwardIndex] < (tRecord[sampleCounter]+stepSize))
 				{
@@ -368,9 +408,15 @@ public:
 			}
 			if (sampleCounter == numSamples)
 			{
-				mode = FrontLegSweepPrepReturn;
-				printf("\n\n\n");
-				motorVel.dumpData();
+				if (isAbove)
+					mode = FrontLegSweepPrepReturn;
+				else
+					mode = FrontLegSweepPrep;
+				/*if (motorVel.dumpData())
+				{
+					printf("DONE");
+					mode = FrontLegSweepPrepReturn;
+				}*/
 			}
 		}
 	}
