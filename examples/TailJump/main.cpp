@@ -19,7 +19,7 @@
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[9] =  {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679, 1}; // RML Ellie
+const float motZeros[9] =  {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679, 4.14}; // RML Ellie
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
@@ -29,6 +29,7 @@ rmlLimb leg[4]; // declare RML limb
 int stateflag = 0; // used for debugging
 enum jumpMode
 {
+    KILL,
     SQUAT,
     EXTEND,
     CONTRACT,
@@ -83,11 +84,11 @@ public:
     float squatExt = 1.0;
     float contractAng = standAng;
     float contractExt = squatExt;
-    float tailJumpAng = 0.7; 
+    float tailJumpAng = 0.75; 
     float tailJumpFrontAng = 0.85; 
     float landRefAng = radians(-30);
     float landAng; // calculated using pitch and landRefAng
-    float landExt = 0.17; // Important, this one is in meters instead of angle
+    float landExt = 0.15; // Important, this one is in meters instead of angle
 
     //IMU arrays for averaging (low pass filter)
     static const int filterSize = 10;
@@ -105,8 +106,11 @@ public:
     //sig is mapped from remote; here, 3 corresponds to pushing the left stick to the right
     // which in turn forces the state machine into FH_LEAP
     void signal(uint32_t sig) {
-        if(sig > 1 && mode == SQUAT)
-        {
+        // left is 2, right is 3
+        if (sig == 2){
+            mode = KILL;
+        }
+        else if(sig == 3 && mode == SQUAT){
             mode = EXTEND;
             squatPrep = 0;
         }
@@ -146,6 +150,12 @@ public:
         if (C->behavior.mode == BehaviorMode_RUN){
             switch(mode){
 
+                case KILL:
+                    stateflag = -1;
+                    for (int i = 0; i<9; ++i){
+                        joint[i].setOpenLoop(0);
+                    }
+                    break;
                 case SQUAT:
                     stateflag = 2;
                     if (squatPrep == 0){ // start a timer
@@ -260,8 +270,8 @@ public:
                     }
 
                     // condition to go to FLIGHT: leg has contracted in angle and extension
-                    if (almostEq(leg[0].getPosition(EXTENSION), contractExt) &&
-                        almostEq(leg[1].getPosition(EXTENSION), contractExt)){
+                    if (almostEq(leg[1].getPosition(EXTENSION), contractExt) &&
+                        almostEq(leg[3].getPosition(EXTENSION), contractExt)){
                         mode = FLIGHT;
                         contractPrep = 0;
                     }
