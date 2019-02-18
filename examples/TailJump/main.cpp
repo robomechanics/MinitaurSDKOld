@@ -84,7 +84,7 @@ public:
     float squatExt = 1.0;
     float contractAng = standAng;
     float contractExt = squatExt;
-    float tailJumpAng = 0.75; 
+    float tailJumpAng = 0.70; 
     float tailJumpFrontAng = 0.85; 
     float landRefAng = radians(-30);
     float landAng; // calculated using pitch and landRefAng
@@ -341,9 +341,9 @@ public:
                 
                     // tries to extend legs forward to brace for landing
                     for (int i = 0; i<4; ++i){
-                        leg[i].setGain(ANGLE, 0.7, 0.03);
+                        leg[i].setGain(ANGLE, 0.6, 0.03);
                         leg[i].setPosition(ANGLE,landAng);
-                        leg[i].setGain(EXTENSION,55, 0.1);
+                        leg[i].setGain(EXTENSION,60, 0.1);
                         leg[i].setPosition(EXTENSION,landExt);
                     }
 
@@ -351,8 +351,8 @@ public:
                     // front legs
                     ext0 = leg[0].getPosition(EXTENSION);
                     ang0 = leg[0].getPosition(ANGLE);
-                    ext1 = leg[1].getPosition(EXTENSION);
-                    ang1 = leg[1].getPosition(ANGLE);
+                    ext1 = leg[2].getPosition(EXTENSION);
+                    ang1 = leg[2].getPosition(ANGLE);
                     // reference x and y are determined by landRefAng and landExt
                     xRef = landExt*fastcos(landAng);
                     yRef = landExt*fastsin(landAng);
@@ -364,13 +364,13 @@ public:
                     diff0 = fastsqrt((x0-xRef)*(x0-xRef) + (y0-yRef)*(y0-yRef));
                     diff1 = fastsqrt((x1-xRef)*(x1-xRef) + (y1-yRef)*(y1-yRef));
                     
-                    if (diff0 > 0.05 || diff1 > 0.05){
+                    if (diff0 > 0.03 || diff1 > 0.03){
                         hasLanded = 1;
                     }
 
 
                     // is stable
-                    if (hasLanded && (diff0 > 0.07 || diff1 > 0.07)){
+                    if (hasLanded && (diff0 > 0.05 || diff1 > 0.05)){
                         mode = POSTLAND;
                         landCounterFull = 0; // reset flags
                         counter = 0;
@@ -415,7 +415,7 @@ public:
                     }
                     // tail should try to go upright
                     if (useTail){
-                        joint[8].setGain(0.2,0.006);
+                        joint[8].setGain(0.4,0.01);
                         joint[8].setPosition(0);
                     }
                     break;
@@ -492,8 +492,8 @@ void debug() {
     float ext0, ext1, ang0, ang1, xRef, yRef, diff0, diff1, x0, y0, x1, y1;
     ext0 = leg[0].getPosition(EXTENSION);
     ang0 = leg[0].getPosition(ANGLE);
-    ext1 = leg[1].getPosition(EXTENSION);
-    ang1 = leg[1].getPosition(ANGLE);
+    ext1 = leg[2].getPosition(EXTENSION);
+    ang1 = leg[2].getPosition(ANGLE);
     // reference x and y are determined by landRefAng and landExt
     xRef = landExt*fastcos(landRefAng);
     yRef = landExt*fastsin(landRefAng);
