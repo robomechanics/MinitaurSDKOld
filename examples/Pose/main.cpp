@@ -71,8 +71,8 @@ public:
 
 	void update()
 	{
-		if (isReorienting())
-			return;
+// 		if (isReorienting())
+// 			return;
 		C->mode = RobotCommand_Mode_JOINT;
 		if (mode == PoseBehavior_LOCK)
 		{
