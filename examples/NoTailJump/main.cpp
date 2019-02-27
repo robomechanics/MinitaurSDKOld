@@ -29,7 +29,7 @@ rmlLimb leg[4]; // declare RML limb
 int stateflag = 0; // used for debugging
 enum jumpMode
 {
-    STAND,
+    KILL,
     SQUAT,
     EXTEND,
     CONTRACT,
@@ -54,7 +54,7 @@ float avg(float list[], int n){
 
 class Starter : public Behavior {
 public:
-    jumpMode mode = STAND;
+    jumpMode mode = SQUAT;
     int tCurrent;
     int standPrep = 0;
     int tStand;
@@ -88,7 +88,7 @@ public:
     float tailJumpFrontAng = 0.75; // degrees forward
     float landRefAng = radians(-30);
     float landAng; // calculated using pitch and landRefAng
-    float landExt = 0.17; // Important, this one is in meters instead of angle
+    float landExt = 0.15; // Important, this one is in meters instead of angle
 
     //IMU arrays for averaging (low pass filter)
     static const int filterSize = 10;
@@ -102,13 +102,26 @@ public:
     float tailPos;
     float tau; // tail torque for open loop custom controls
     bool useTail = 0;
-
+    
+    //sig is mapped from remote; here, 3 corresponds to pushing the left stick to the right
+    // which in turn forces the state machine into FH_LEAP
+    void signal(uint32_t sig) {
+        // left is 2, right is 3
+        if (sig == 2){
+            mode = KILL;
+        }
+        else if(sig == 3 && mode == SQUAT){
+            mode = EXTEND;
+            squatPrep = 0;
+        }
+            
+    }
     // begin() is called once when the behavior starts
     void begin() {
 
         // Command limbs
         C->mode = RobotCommand_Mode_JOINT;
-        mode = STAND;
+        mode = SQUAT;
         for (int i=0; i<4; ++i){
             P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
         }
@@ -134,38 +147,12 @@ public:
         // Starter when RUN
         if (C->behavior.mode == BehaviorMode_RUN){
             switch(mode){
-                case STAND:
-                    stateflag = 1;
-                    if (standPrep == 0){
-                        tStand = tCurrent;
-                        standPrep = 1;
+                case KILL:
+                    stateflag = -1;
+                    for (int i=0; i<4; ++i){
+                        leg[i].setOpenLoop(EXTENSION, 0);
+                        leg[i].setOpenLoop(ANGLE, 0);
                     }
-                    for (int i = 0; i<4; ++i){
-                        leg[i].setGain(ANGLE,1, 0.005);
-                        leg[i].setGain(EXTENSION,0.6, 0.005);
-                        leg[i].setPosition(ANGLE,standAng);
-                        leg[i].setPosition(EXTENSION,standExt);
-                    }
-                    if (useTail){
-                        if (tailPos < PI/4){
-                            joint[8].setGain(0.1, 0.006);
-                            joint[8].setPosition(PI/2); //prepare tail
-                        } else if (tailPos > PI/2){
-                            joint[8].setOpenLoop(-0.25);
-                        }else{
-                            tau = 0.12-0.03*logf((tailPos+PI/2)/(PI/2-tailPos))-0.02*tailVel;
-                            joint[8].setOpenLoop(tau);
-                        }
-                    }
-                    
-                    //switch mode when ready
-                    if (tCurrent - tStand > 2000) {// been standing a while now
-                        mode = SQUAT;
-                        for (int i=0; i<4; ++i){
-                        }
-                        standPrep = 0;
-                    }
-                        
                     break;
 
                 case SQUAT:
@@ -191,11 +178,7 @@ public:
                             joint[8].setOpenLoop(tau);
                         }
                     }
-                    if (tCurrent - tSquatStart > 1000){ // been squatting a while
-                        mode = EXTEND; // go to next phase
-                        squatPrep = 0;
-                        break;
-                    }
+                    
                     
                     break;
 
@@ -370,8 +353,8 @@ public:
                     // front legs
                     ext0 = leg[0].getPosition(EXTENSION);
                     ang0 = leg[0].getPosition(ANGLE);
-                    ext1 = leg[1].getPosition(EXTENSION);
-                    ang1 = leg[1].getPosition(ANGLE);
+                    ext1 = leg[2].getPosition(EXTENSION);
+                    ang1 = leg[2].getPosition(ANGLE);
                     // reference x and y are determined by landRefAng and landExt
                     xRef = landExt*fastcos(landAng);
                     yRef = landExt*fastsin(landAng);
@@ -383,13 +366,13 @@ public:
                     diff0 = fastsqrt((x0-xRef)*(x0-xRef) + (y0-yRef)*(y0-yRef));
                     diff1 = fastsqrt((x1-xRef)*(x1-xRef) + (y1-yRef)*(y1-yRef));
                     
-                    if (diff0 > 0.05 || diff1 > 0.05){
+                    if (diff0 > 0.03 || diff1 > 0.03){
                         hasLanded = 1;
                     }
 
 
                     // is stable
-                    if (hasLanded && (diff0 > 0.07 || diff1 > 0.07)){
+                    if (hasLanded && (diff0 > 0.05 || diff1 > 0.05)){
                         mode = POSTLAND;
                         landCounterFull = 0; // reset flags
                         counter = 0;
@@ -443,7 +426,7 @@ public:
         }
         // Stand when STOP
         else if (C->behavior.mode == BehaviorMode_STOP){
-            mode = STAND;
+            mode = SQUAT;
             stateflag = 0;
             hasLanded = 0;
             standPrep = 0;
