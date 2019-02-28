@@ -108,7 +108,7 @@ while(run):
     #-------------------------------------------
 
     #Assign tcp data to variables (for readability)
-    speed = mData[0]
+    fwdVel = mData[0]
     yaw = mData[1]
 
     var1 = mData[2]
@@ -136,7 +136,7 @@ while(run):
 
     # Custom packet for hardware in the loop optimizations
     behavior_command = struct.pack( '<I2f4f3f', 1, # Version 1 of serial packet format
-                                                    speed,yaw,
+                                                    fwdVel,yaw,
                                                     var1,var2,var3,var4,
                                                     var5,var6,var7)
 
