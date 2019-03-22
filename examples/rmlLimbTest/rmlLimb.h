@@ -1,11 +1,11 @@
+#include "minitaurVelocity.h"
+
 #ifndef RMLLIMB_H
 #define RMLLIMB_H
-
 // #include <stdio.h>
 // #include <SDK.h>
 // #include <math.h>
 // #include <Motor.h>
-
 /*
 TODO:
 
@@ -23,9 +23,8 @@ public:
 	float q0, q1, dq0, dq1; 
 	float kp = 0, kd = 0, kpr = 0, kdr = 0, kpt = 0, kdt = 0; // feedback gains 
 	float ur, uth; // [pwm0;pwm1] = J'*[ur;uth] we are going to apply voltage to two motors at the end 
-
 	rmlLimb(); 
-	void Init(int legnumber); 
+	void Init(int legnumber, minitaurVelocity *motorVel_); 
 
 	void updateState(void);
 	void updateCommand(void);
@@ -44,9 +43,9 @@ public:
 	void setGain(int type, float kp, float kd); 
 	void setGain(int type, float kp);
 	void setPosition(int getAng, float des);   
-
 	// void setForce(float fx, float fy); 
 	// void getForce(float &fx, float &fy);
+	minitaurVelocity *motorVel;
 };
 
 #endif

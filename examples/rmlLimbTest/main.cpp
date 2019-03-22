@@ -10,15 +10,19 @@
 #include <Motor.h>
 #include <ReorientableBehavior.h>
 #include "rmlLimb.h"
+#include "minitaurVelocity.h"
+
+float commandedAnglePGain = 0;
 
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+const float motZeros[9] =  {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 1.008}; // RML Ellie
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
-rmlLimb RMLlimb[4]; 
+rmlLimb RMLlimb[4];
+minitaurVelocity motorVel;
 
 float fr = 0;
 float fth = 0;
@@ -41,7 +45,6 @@ class FirstHop : public ReorientableBehavior
 {
 public:
 	FHMode mode = FH_SIT; //Current state within state-machine
-
 	uint32_t tLast; //int used to store system time at various events
 
 	float lastExtension; //float for storing leg extension during the last control loop
@@ -79,190 +82,72 @@ public:
 
 	void update()
 	{
+		motorVel.updateVelocity();
 		for(int i = 0; i<4; ++i)
 		{
+			P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 			RMLlimb[i].updateState();
 		}
 
 		if (isReorienting())
 			return;
 		C->mode = RobotCommand_Mode_JOINT;
-		P->limbs[0].type = LimbParams_Type_SYMM5BAR_EXT_M;
 
 
 		
 		RMLlimb[0].FK(joint[1].getPosition(),joint[0].getPosition(),r,th);
 		RMLlimb[0].IK(r,th,q1,q0);
 
-		// RMLlimb[0].setGain(EXTENSION, 150, 0);
-		// RMLlimb[0].setGain(ANGLE, 0.5, 0);
-		// RMLlimb[1].setGain(EXTENSION, 0, 0);
-		// RMLlimb[2].setGain(EXTENSION, 0, 0);
-		// RMLlimb[3].setGain(EXTENSION, 0, 0);
-
-		// RMLlimb[0].setPosition(EXTENSION, 0.2);
-		// RMLlimb[0].setPosition(ANGLE, 0);
-
-		for (int i = 0; i<4; ++i)
+		// C->behavior.pose.position.z can be commanded from the joystick (the left vertical axis by default)
+		// We map this using map() to the desired leg extension, so that the joystick can be used to raise
+		// and lower the standing height between 0.12 and 0.25 m
+		extDes = map(C->behavior.pose.position.z, -1.0, 1.0, 0.11, 0.25);
+		//If the commanded position is significantly lower than actual position,
+		// and the behavior has just switched from SIT to STAND, then we smoothly
+		// interpolate commanded positions between the last extension and the desired
+		// extension, at the rate set by kExtAnimRate. This prevents the robot from
+		// falling to quickly.
+		if (S->millis - tLast < 250 && exCmd < extDes)
 		{
-			RMLlimb[i].setGain(EXTENSION, 150);
-			RMLlimb[i].setPosition(EXTENSION, 0.2);
+			exCmd = exCmd + (extDes - lastExtension) * kExtAnimRate;
 		}
-
-		for(int i = 0; i<4; ++i)
+		else
 		{
-			RMLlimb[i].updateCommand();
-		}
-
-		return;
-
-
-
-
-
-
-		if (mode == FH_SIT)
-		{
-			for (int i = 0; i < P->limbs_count; ++i)
+			// After this initial period, or if the initial command is higher than
+			// the actual initial position, we check to makes sure that the commanded
+			// position is within maxDeltaExtCmd. If it is not, simply add or subtract
+			// the max delta value until the difference is less than that. This prevents
+			// from changing the extension faster than maxDeltaExtCmd*CONTROL_RATE m/s.
+			if (extDes - exCmd > maxDeltaExtCmd)
 			{
-				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
-				// Splay angle for the front/rear legs (outward splay due to fore-displacement of front legs
-				// and aft-displacement of rear legs)
-				// The pitch angle (S->imu.euler.y) is subtracted since we want to the set the *absolute* leg angle
-				// and limb[i].setPosition(ANGLE, *) will set the angle of the leg *relative* to the robot body
-				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
-				limb[i].setGain(ANGLE, 0.8, .03);
-				limb[i].setPosition(ANGLE, angDes);
-
-				limb[i].setGain(EXTENSION, 120, 3);
-				// Set the leg extension to 0.14 m
-				limb[i].setPosition(EXTENSION, 0.14);
+				exCmd = exCmd + maxDeltaExtCmd;
 			}
-		}
-		else if (mode == FH_STAND)
-		{
-			// C->behavior.pose.position.z can be commanded from the joystick (the left vertical axis by default)
-			// We map this using map() to the desired leg extension, so that the joystick can be used to raise
-			// and lower the standing height between 0.12 and 0.25 m
-			extDes = map(C->behavior.pose.position.z, -1.0, 1.0, 0.11, 0.25);
-			//If the commanded position is significantly lower than actual position,
-			// and the behavior has just switched from SIT to STAND, then we smoothly
-			// interpolate commanded positions between the last extension and the desired
-			// extension, at the rate set by kExtAnimRate. This prevents the robot from
-			// falling to quickly.
-			if (S->millis - tLast < 250 && exCmd < extDes)
+			else if (exCmd - extDes > maxDeltaExtCmd)
 			{
-				exCmd = exCmd + (extDes - lastExtension) * kExtAnimRate;
+				exCmd = exCmd - maxDeltaExtCmd;
 			}
 			else
 			{
-				// After this initial period, or if the initial command is higher than
-				// the actual initial position, we check to makes sure that the commanded
-				// position is within maxDeltaExtCmd. If it is not, simply add or subtract
-				// the max delta value until the difference is less than that. This prevents
-				// from changing the extension faster than maxDeltaExtCmd*CONTROL_RATE m/s.
-				if (extDes - exCmd > maxDeltaExtCmd)
-				{
-					exCmd = exCmd + maxDeltaExtCmd;
-				}
-				else if (exCmd - extDes > maxDeltaExtCmd)
-				{
-					exCmd = exCmd - maxDeltaExtCmd;
-				}
-				else
-				{
-					exCmd = extDes;
-				}
-			}
-			for (int i = 0; i < P->limbs_count; ++i)
-			{
-				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
-				// Leg splay
-				angDes = (isFront(i)) ? -S->imu.euler.y - 0.01 : -S->imu.euler.y + 0.02;
-				// Stiffen the angle gain linearly as a function of the extension
-				// This way, more torque is provided as the moment arm becomes longer.
-				limb[i].setGain(ANGLE, 0.8 + 0.2 * ((extDes - 0.12) / 0.13), 0.03);
-				limb[i].setPosition(ANGLE, angDes);
-
-				limb[i].setGain(EXTENSION, 120, 4);
-				// The smoothly animated leg extension
-				limb[i].setPosition(EXTENSION, exCmd);
+				exCmd = extDes;
 			}
 		}
-		else if (mode == FH_LEAP)
+		for (int i = 0; i < P->limbs_count; ++i)
 		{
-			for (int i = 0; i < P->limbs_count; ++i)
-			{
-				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-				// Use setOpenLoop to exert the highest possible vertical force
-				limb[i].setOpenLoop(EXTENSION, 2);  
-				limb[i].setGain(ANGLE, 1.0, 0.03);
-				limb[i].setPosition(ANGLE, -S->imu.euler.y);
-				// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
-				// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
-				if (limb[i].getPosition(EXTENSION) > 2.7)
-				{
-					mode = FH_LAND;
-					tLast = S->millis;
-					unitUpdated = false;
-				}
-			}
-
-
-			// C->mode = RobotCommand_Mode_JOINT;
-			// for (int i = 0; i < P->joints_count; ++i)
-			// {
-			// 	// Use setOpenLoop to exert the highest possible vertical force
-			// 	joint[i].setOpenLoop(1);  
-
-			// }
-
-			// for (int i = 0; i < P->limbs_count; ++i)
-			// {
-			// 	P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_RAD;
-			// 	// After the mean leg angle passes 2.7 radians (note that we have changed the leg kinematics
-			// 	// to LimbParams_Type_SYMM5BAR_EXT_RAD) for this case, switch into a different mode (LAND)
-			// 	if (limb[i].getPosition(EXTENSION) > 3 || (S->millis - tLast >= 500))
-			// 	{
-			// 		mode = FH_LAND;
-			// 		tLast = S->millis;
-			// 		unitUpdated = false;
-			// 	}
-			// }
-			
+			P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
+			// Leg splay
+			angDes = (isFront(i)) ? -S->imu.euler.y - 0.01 : -S->imu.euler.y + 0.02;
+			// Stiffen the angle gain linearly as a function of the extension
+			// This way, more torque is provided as the moment arm becomes longer. 
+			commandedAnglePGain = 0.8 + 0.2 * ((extDes - 0.12) / 0.13);
+			RMLlimb[i].setGain(ANGLE, commandedAnglePGain, 0.03);
+			RMLlimb[i].setPosition(ANGLE, angDes);
+			RMLlimb[i].setGain(EXTENSION, 120, 2);
+			// The smoothly animated leg extension
+			RMLlimb[i].setPosition(EXTENSION, exCmd);
 		}
-		else if (mode == FH_LAND)
+		for(int i = 0; i<4; ++i)
 		{
-
-			for (int i = 0; i < P->limbs_count; ++i)
-			{
-
-				// This updates the parameters struct to switch back into meters as its units.
-				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
-				// Sets the commanded length for landing to 0.25 meters
-				exCmd = 0.25;
-				// Sets the desired leg angle to be facing downward plus a leg splay in the front
-				// and back.
-				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
-
-				limb[i].setGain(ANGLE, 1.2, 0.03);
-				limb[i].setPosition(ANGLE, angDes);
-
-				limb[i].setGain(EXTENSION, 150, 5);
-				limb[i].setPosition(EXTENSION, exCmd);
-
-				// Use Limb::getForce for touchdown detection, and set a 20 millisecond
-				// grace period so that the legs can settle to their landing extension,
-				// without their inertia triggering a false positive.
-
-				if (limb[i].getForce(EXTENSION) > 40 && S->millis - tLast > 20)
-				{
-					mode = FH_STAND;
-					tLast = S->millis;
-					exCmd = 0.25;
-					lastExtension = 0.25;
-				}
-			}
+			RMLlimb[i].updateCommand();
 		}
 	}
 
@@ -377,11 +262,8 @@ void debug()
 	// 		// Use setOpenLoop to exert the highest possible vertical force
 	// 		printf("Motor %d command: %4.3f \n",i, joint[i].getOpenLoop());  
 	// 	}
+	printf("%f \n",commandedAnglePGain);
 
-	printf("Joint 0,1: %6.3f, %6.3f  ", joint[0].getPosition(),joint[1].getPosition());
-	printf("Limb 0 ext, ang: %6.3f, %6.3f  ", RMLlimb[0].getPosition(EXTENSION),RMLlimb[0].getPosition(ANGLE));
-	printf("Limb 0 ext, ang: %6.3f, %6.3f  ", firstHop.r, firstHop.th);
-	printf("Joint 0,1: %6.3f, %6.3f \n", firstHop.q0, firstHop.q1);
 	// printf("Motor 0 cmd: %6.3f, Motor 1 cmd: %6.3f  ", joint[0].getOpenLoop(),joint[1].getOpenLoop());
 	// printf("Gains: %6.3f, %6.3f \n", RMLlimb[0].kpr, RMLlimb[0].kdr);
 	// printf("Motor 0 cmd: %4.3f, Motor 1 cmd: %4.3f \n", RMLlimb[0].ur,RMLlimb[0].uth);
@@ -405,12 +287,13 @@ int main(int argc, char *argv[])
 	// float testPos = RMLlimb.getPos(0);
 	// int testSetOpen = RMLlimb.setOpenLoop(fr,fth);
 	// RMLlimb.setOpenLoop(fr,fth);
+	motorVel.init();
 	for(int i = 0; i<4; ++i)
 	{
-		RMLlimb[i].Init(i);
+		RMLlimb[i].Init(i,&motorVel);
 	}
- 
-	setDebugRate(8);
+
+	setDebugRate(1);
 
 	// Add our behavior to the behavior vector (Walk and Bound are already there)
 	behaviors.push_back(&firstHop);

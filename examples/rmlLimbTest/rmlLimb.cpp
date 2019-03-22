@@ -3,6 +3,7 @@
 #include <SDK.h>
 #include <math.h>
 #include <Motor.h>
+#include "minitaurVelocity.h"
 
 rmlLimb::rmlLimb()
 {
@@ -31,8 +32,9 @@ rmlLimb::rmlLimb()
 	// call RMLlimb[i].updateCommand() at end of behavior update function  
 }
 
-void rmlLimb::Init(int legnumber)
+void rmlLimb::Init(int legnumber,minitaurVelocity *motorVel_)
 {
+	motorVel = motorVel_;
 	if (legnumber == 0)
 	{
 		idx0 = 1;
@@ -57,15 +59,16 @@ void rmlLimb::Init(int legnumber)
 	{
 		printf("legnumber must be between [0,3]!!!\n");
 	}
-
 }
 
 void rmlLimb::updateState(void)
 {
 	q0 = joint[idx0].getPosition(); /// get joint pos 
 	q1 = joint[idx1].getPosition(); 	
-	dq0 = joint[idx0].getVelocity(); /// get joint pos 
-	dq1 = joint[idx1].getVelocity(); 	
+	dq0 = motorVel->filteredVel[idx0];
+	dq1 = motorVel->filteredVel[idx1];
+	//dq0 = joint[idx0].getVelocity(); /// get joint pos 
+	//dq1 = joint[idx1].getVelocity(); 	
 
 	usePolar = P->limbs[0].type;
 }
