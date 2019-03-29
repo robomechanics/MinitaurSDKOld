@@ -11,34 +11,44 @@ using namespace std;
 
 #define tWait 50000
 #define numMotors 10
-#define numSamplesPos 2
-#define numSamplesVel 2
 
 class minitaurVelocity
 {
-public:
+private:
+	int numSamplesPos = 2;
+	int numSamplesVel = 2;
 	int indexPos = 0;
 	int indexVel = 0;
 	bool posFilled = false;
 	bool velFilled = false;
-	uint32_t lastT = 0;
-	uint32_t tRecord[numSamplesPos];
-	float posRecord[numSamplesPos*numMotors];
-	float velRecord[numMotors*numSamplesVel];
+	
 	int tRecCount = 0;
 	int posRecCount = 0;
 	int velRecCount = 0;
+	float mean(float *vec,int start,int length);
+	void updateVelocityMean();
+	void updateVelocityExponential();
+	int filterType = 0; //0 for mean filter, 1 for exponential filter
+	float expAlpha;
+
+	// variable used for outputting data
 	int filtVelCount = 0;
 	uint32_t timeLastPrint = 0;
-	float median(float *vec,int start,int length);
-	float mean(float *vec,int start,int length);
 public:
+	uint32_t lastT = 0;
+	uint32_t* tRecord;
+	float *posRecord;
+	float *velRecord;
 	minitaurVelocity();
 	void init();
+	void initMean(); // initialize mean filter
+	void initMean(int numSamplesPos_,int numSamplesVel_);
+	void initExponential(); // initialize exponential filter
+	void initExponential(float expAlpha_);
 	void updateVelocity();
-	void resetDump();
-	bool dumpData();
-	float filteredVel[numMotors];
+	void resetDump(); //for troubleshooting ignore
+	bool dumpData(); // for troubleshooting ignore
+	float filteredVel[numMotors];// use this to access filtered velocities
 };
 
 #endif

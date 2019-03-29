@@ -85,9 +85,49 @@ public:
 		motorVel.updateVelocity();
 		for(int i = 0; i<4; ++i)
 		{
-			P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 			RMLlimb[i].updateState();
 		}
+
+		if (isReorienting())
+			return;
+		C->mode = RobotCommand_Mode_JOINT;
+		P->limbs[0].type = LimbParams_Type_SYMM5BAR_EXT_M;
+
+
+
+		RMLlimb[0].FK(joint[1].getPosition(),joint[0].getPosition(),r,th);
+		RMLlimb[0].IK(r,th,q1,q0);
+
+		// RMLlimb[0].setGain(EXTENSION, 150, 0);
+		// RMLlimb[0].setGain(ANGLE, 0.5, 0);
+		// RMLlimb[1].setGain(EXTENSION, 0, 0);
+		// RMLlimb[2].setGain(EXTENSION, 0, 0);
+		// RMLlimb[3].setGain(EXTENSION, 0, 0);
+
+		// RMLlimb[0].setPosition(EXTENSION, 0.2);
+		// RMLlimb[0].setPosition(ANGLE, 0);
+
+		for (int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].setGain(EXTENSION, 100,1.7);
+			RMLlimb[i].setGain(ANGLE, 0.8,0.02);
+			RMLlimb[i].setPosition(EXTENSION, 0.2);
+			RMLlimb[i].setPosition(ANGLE, 0);
+		}
+
+		for(int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].updateCommand();
+		}
+
+		return;
+
+		motorVel.updateVelocity();
+		for(int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].updateState();
+		}
+		P->limbs[0].type = LimbParams_Type_SYMM5BAR_EXT_M;
 
 		if (isReorienting())
 			return;
@@ -97,6 +137,20 @@ public:
 		
 		RMLlimb[0].FK(joint[1].getPosition(),joint[0].getPosition(),r,th);
 		RMLlimb[0].IK(r,th,q1,q0);
+
+
+		for (int i = 0; i < P->limbs_count; ++i)
+		{
+			RMLlimb[i].setGain(ANGLE, 0,0);//commandedAnglePGain, 0.03);
+			RMLlimb[i].setPosition(ANGLE, 0);
+			RMLlimb[i].setGain(EXTENSION, 80,0);//120, 2);
+			RMLlimb[i].setPosition(EXTENSION, exCmd);
+		}
+		for(int i = 0; i<4; ++i)
+		{
+			RMLlimb[i].updateCommand();
+		}
+		return;
 
 		// C->behavior.pose.position.z can be commanded from the joystick (the left vertical axis by default)
 		// We map this using map() to the desired leg extension, so that the joystick can be used to raise
@@ -139,9 +193,9 @@ public:
 			// Stiffen the angle gain linearly as a function of the extension
 			// This way, more torque is provided as the moment arm becomes longer. 
 			commandedAnglePGain = 0.8 + 0.2 * ((extDes - 0.12) / 0.13);
-			RMLlimb[i].setGain(ANGLE, commandedAnglePGain, 0.03);
+			RMLlimb[i].setGain(ANGLE, 0,0);//commandedAnglePGain, 0.03);
 			RMLlimb[i].setPosition(ANGLE, angDes);
-			RMLlimb[i].setGain(EXTENSION, 120, 2);
+			RMLlimb[i].setGain(EXTENSION, 80,0);//120, 2);
 			// The smoothly animated leg extension
 			RMLlimb[i].setPosition(EXTENSION, exCmd);
 		}
@@ -262,7 +316,7 @@ void debug()
 	// 		// Use setOpenLoop to exert the highest possible vertical force
 	// 		printf("Motor %d command: %4.3f \n",i, joint[i].getOpenLoop());  
 	// 	}
-	printf("%f \n",commandedAnglePGain);
+	printf("%f \n",motorVel.filteredVel[0]);
 
 	// printf("Motor 0 cmd: %6.3f, Motor 1 cmd: %6.3f  ", joint[0].getOpenLoop(),joint[1].getOpenLoop());
 	// printf("Gains: %6.3f, %6.3f \n", RMLlimb[0].kpr, RMLlimb[0].kdr);
@@ -287,13 +341,13 @@ int main(int argc, char *argv[])
 	// float testPos = RMLlimb.getPos(0);
 	// int testSetOpen = RMLlimb.setOpenLoop(fr,fth);
 	// RMLlimb.setOpenLoop(fr,fth);
-	motorVel.init();
+	motorVel.initMean();
 	for(int i = 0; i<4; ++i)
 	{
 		RMLlimb[i].Init(i,&motorVel);
 	}
 
-	setDebugRate(1);
+	setDebugRate(100);
 
 	// Add our behavior to the behavior vector (Walk and Bound are already there)
 	behaviors.push_back(&firstHop);

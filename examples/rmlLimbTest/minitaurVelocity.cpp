@@ -1,49 +1,106 @@
 #include "minitaurVelocity.h"
 #define thresh 250
-minitaurVelocity::minitaurVelocity(){}
+minitaurVelocity::minitaurVelocity()
+{
+	initMean();
+}
 
 void minitaurVelocity::init()
 {
+	// general variable to init for all methods
+	indexPos = 0;
+	indexVel = 0;
+	posFilled = false;
+	velFilled = false;
+	lastT = 0;
+	free(tRecord);
+	free(posRecord);
+	free(velRecord);
+	tRecCount = 0;
+	posRecCount = 0;
+	velRecCount = 0;
+	for (int i = 0; i<numMotors; i++)
+		filteredVel[i] = 0;
 }
 
-/*
-void minitaurVelocity::init(int _numMotors)
+void minitaurVelocity::initMean(int numSamplesPos_,int numSamplesVel_)
 {
-	numMotors = _numMotors;
-	initVectors();
+	numSamplesPos = numSamplesPos_;
+	numSamplesVel = numSamplesVel_;
+	init();
+	initMean();
 }
 
-void minitaurVelocity::init(int _numMotors,int _numSamplesPos, int _numSamplesVel)
+void minitaurVelocity::initMean()
 {
-	numMotors = _numMotors;
-	numSamplesPos = _numSamplesPos;
-	numSamplesVel = _numSamplesVel;
-	initVectors();
-}
-
-
-void minitaurVelocity::initVectors()
-{
-	posRecord.clear();
-	velRecord.clear();
-	filteredVel.clear();
-	tRecord.clear();
-	for (int i = 0;i < numMotors*numSamplesPos;i++)
-		posRecord.push_back(0);
-	for (int i = 0; i < numMotors*numSamplesVel;i++)
-		velRecord.push_back(0);
+	filterType = 0;
+	init();
 	for (int i = 0; i < numMotors;i++)
-		filteredVel.push_back(0);
-	for (int i = 0;i < numSamplesPos;i++)
-		tRecord.push_back(0);
+		filteredVel[i] = 0;
+	tRecord = (uint32_t*)malloc(numSamplesPos*sizeof(uint32_t));
+	posRecord = (float*)malloc(numSamplesPos*numMotors*sizeof(float));
+	velRecord = (float*)malloc(numMotors*numSamplesVel*sizeof(float));
 }
-*/
+
+void minitaurVelocity::initExponential(float expAlpha_)
+{
+	expAlpha = expAlpha_;
+}
+
+void minitaurVelocity::initExponential()
+{
+	filterType = 1;
+	init();
+	filterType = 1;
+	posRecord = (float*)malloc(numMotors*sizeof(float));
+	for (int i = 0; i < numMotors;i++)
+		filteredVel[i] = 0;
+}
 
 void minitaurVelocity::updateVelocity()
+{
+	switch(filterType)
+	{
+		case 0: 
+			updateVelocityMean();
+			break;
+		case 1: 
+			updateVelocityExponential();
+			break;
+	}
+}
+
+void minitaurVelocity::updateVelocityExponential()
 {
 	//Record time and motor position
 	if (lastT - clockTimeUS < thresh)
 		return;
+	else
+		lastT = clockTimeUS;
+
+	if (posFilled)
+	{
+		for (int i = 0; i < numMotors; i++)
+		{
+			filteredVel[i] = (1-expAlpha)*filteredVel[i] + expAlpha*(joint[i].getPosition()-posRecord[i])/(float)(clockTimeUS-lastT);
+			posRecord[i] = joint[i].getPosition();
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numMotors; i++)
+			posRecord[i] = joint[i].getPosition();
+		posFilled = true;
+	}
+}
+
+void minitaurVelocity::updateVelocityMean()
+{
+	//Record time and motor position
+	if (lastT - clockTimeUS < thresh)
+		return;
+	else
+		lastT = clockTimeUS;
 	tRecord[indexPos] = clockTimeUS;
 	for (int i = 0; i < numMotors; i++)
 		posRecord[indexPos+numSamplesPos*i] = joint[i].getPosition();
@@ -84,31 +141,6 @@ void minitaurVelocity::updateVelocity()
 		indexVel++;
 		indexVel = indexVel%numSamplesVel;
 	}
-}
-
-float minitaurVelocity::median(float *vec,int start,int length)
-{
-	//First copy vec to sorted while sorting the data
-	float sorted[length];
-	for (int i = 0;i < length;i++)
-	{
-		int index=0;
-		for (int j = 0; j < i+1;j++)
-		{
-			index = j;
-			if (vec[i+start] < sorted[j])
-				break;
-		}
-		for (int k = length;k > index;k--)
-			sorted[k] = sorted[k-1];
-		sorted[index] = vec[i+start];
-	}
-	if (length%2)
-	{
-		return sorted[(int)floor(length/2)];
-	}
-	else
-		return (sorted[length/2]+sorted[length/2-1])/2;
 }
 
 float minitaurVelocity::mean(float *vec,int start,int length)
