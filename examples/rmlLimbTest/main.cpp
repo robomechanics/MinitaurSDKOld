@@ -109,8 +109,8 @@ public:
 
 		for (int i = 0; i<4; ++i)
 		{
-			RMLlimb[i].setGain(EXTENSION, 100,1.7);
-			RMLlimb[i].setGain(ANGLE, 0.8,0.02);
+			RMLlimb[i].setGain(EXTENSION, 50,1.7);
+			RMLlimb[i].setGain(ANGLE, 0.8,0.03);
 			RMLlimb[i].setPosition(EXTENSION, 0.2);
 			RMLlimb[i].setPosition(ANGLE, 0);
 		}
@@ -341,7 +341,8 @@ int main(int argc, char *argv[])
 	// float testPos = RMLlimb.getPos(0);
 	// int testSetOpen = RMLlimb.setOpenLoop(fr,fth);
 	// RMLlimb.setOpenLoop(fr,fth);
-	motorVel.initMean();
+	//motorVel.initExponential(0.9);
+	motorVel.initMean(3,3);
 	for(int i = 0; i<4; ++i)
 	{
 		RMLlimb[i].Init(i,&motorVel);

@@ -82,7 +82,7 @@ void minitaurVelocity::updateVelocityExponential()
 	{
 		for (int i = 0; i < numMotors; i++)
 		{
-			filteredVel[i] = (1-expAlpha)*filteredVel[i] + expAlpha*(joint[i].getPosition()-posRecord[i])/(float)(clockTimeUS-lastT);
+			filteredVel[i] = (1-expAlpha)*filteredVel[i] + expAlpha*(joint[i].getPosition()-posRecord[i])/((float)(clockTimeUS-lastT)/1000000.0);
 			posRecord[i] = joint[i].getPosition();
 		}
 	}
@@ -123,7 +123,7 @@ void minitaurVelocity::updateVelocityMean()
 				if (posLast > 5.0*PI/6.0)
 					posLast = posLast - 2.0*PI;
 			}
-			velRecord[indexVel+numSamplesVel*i] = (posNext - posLast)/((tRecord[indexPos]-tRecord[(indexPos+1)%numSamplesPos])/1000000.0);
+			velRecord[indexVel+numSamplesVel*i] = (posNext - posLast)/((float)(tRecord[indexPos]-tRecord[(indexPos+1)%numSamplesPos])/1000000.0);
 		}
 	}
 
