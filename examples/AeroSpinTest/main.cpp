@@ -8,14 +8,20 @@
 #include <SDK.h>
 #include <Motor.h>
 
+enum spinMode
+{
+	KILL,
+	RUN
+};
+
 float avg(float *myArray, int len){
- float sum = 0;
- float result;
- for (int i = 0; i < len; i++){
-   sum += myArray[i];
- }
- result = sum/float(len);
- return result;
+	float sum = 0;
+	float result;
+	for (int i = 0; i < len; i++){
+	sum += myArray[i];
+	}
+	result = sum/float(len);
+	return result;
 }
 
 float filteredVelocity; // global variable for debug()
@@ -23,15 +29,28 @@ float filteredVelocity; // global variable for debug()
 class Test : public Behavior
 {
 public:
-	float df = 0.1;
-	const int bufferSize = 100;
+	spinMode mode = RUN;
+	float df = 0.6;
+	const static int bufferSize = 1000;
 	float velocityBuffer[bufferSize];
 	int counter;
 	bool filledBuffer = false;
 	float curVel;
+
+	void signal(uint32_t sig)
+	{
+		if(sig == 3){
+			mode = KILL;
+		}
+		if (sig == 2){
+			mode = RUN;
+		}
+			
+	}
 	void begin()
 	{
 		counter = 0;
+		mode = KILL;
 	}
 
 	void update()
@@ -42,8 +61,12 @@ public:
 		for (int i=0; i<8; ++i){
 			C->joints[i].mode = JointMode_OFF; // turn off leg motors
 		}
-		// Spin tail motor
-		joint[8].setOpenLoop(df);
+		if (mode == RUN){
+			// Spin tail motor
+			joint[8].setOpenLoop(df);
+		} else if (mode == KILL){
+			joint[8].setOpenLoop(0);
+		}
 
 		// Read motor speed
 		curVel = joint[8].getVelocity();
@@ -69,7 +92,10 @@ public:
 
 void debug()
 {
-	printf("Motor velocity = %f\n", filteredVelcoity);
+	float curVel = filteredVelocity;
+	float df = joint[8].getOpenLoop();
+	float pos = joint[8].getPosition();
+	printf("velocity = %f,\tduty factor = %f,\tMotor position = %f\n", curVel, df, pos);
 }
 
 int main(int argc, char *argv[])
@@ -77,6 +103,13 @@ int main(int argc, char *argv[])
 	// Loads some default settings including motor parameters
 #if defined(ROBOT_MINITAUR)
 	init(RobotParams_Type_MINITAUR, argc, argv);
+	// Set the joint type; see JointParams
+	P->joints[8].type = JointParams_Type_GRBL;
+
+	// Set the *physical* address (e.g. etherCAT ID, PWM port, dynamixel ID, etc.)
+	P->joints[8].address = 8;
+
+	P->joints[8].gearRatio = 1.0;
 #elif defined(ROBOT_MINITAUR_E)
 	init(RobotParams_Type_MINITAUR_E, argc, argv);
 #else
@@ -92,6 +125,7 @@ int main(int argc, char *argv[])
 	{
 		// Set zeros and directions
 		P->joints[i].zero = zeros[i];
+		P->joints[i].direction = directions[i];
 	}
 
 	// No limbs, only 1DOF joints
@@ -99,9 +133,18 @@ int main(int argc, char *argv[])
 
 	// Remove default behaviors from behaviors vector, create, add, and start ours
 	Test test;
+	safetyShutoffEnable(false);
 	behaviors.clear();
 	behaviors.push_back(&test);
 	test.begin();
+	setDebugRate(100);
+	softStartEnable(false);
+
+	SerialPortConfig cfg;
+	cfg.baud = 115200;
+	cfg.mode = SERIAL_8N1;
+	ioctl(STDOUT_FILENO, IOCTL_CMD_SERIAL_PORT_CFG, &cfg);
+
 
 	return begin();
 }
