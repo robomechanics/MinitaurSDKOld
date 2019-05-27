@@ -11,12 +11,43 @@
 #include <ReorientableBehavior.h>
 #include "OldWalk.h"
 
+#include <ThermalObserver.h>
+ThermalObserver thermalObserver[8];
+class ThermalObserverPeripheral : public Peripheral
+{public:
+  int offFlag = 0;
+  int sizzleCount = 0;
+  float maxTemp = 0.0;
+  float tempVal = 0.0;
+  void begin(){
+    for(int i = 0; i < P->joints_count; ++i)
+      thermalObserver[i].assignMotor(i);}
+  void update(){
+    for(int i = 0; i < P->joints_count; ++i)
+      thermalObserver[i].update();
+    for(int i = 0; i < P->joints_count; ++i){
+      if (thermalObserver[i].tempCore > tempVal) {
+        tempVal = thermalObserver[i].tempCore;
+      }
+      if (thermalObserver[i].sizzleFlag) {
+        sizzleCount =+ 1;
+      }
+    }
+    if (sizzleCount > 0) offFlag = 1;
+    else offFlag = 0;
+    sizzleCount = 0;
+    maxTemp = tempVal;
+    tempVal = 0.0;
+  }
+};
+
+ThermalObserverPeripheral thermalObserverPeripheral;
 
 
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679}; // RML Ellie
+const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.38}; // RML Ellie
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
@@ -25,7 +56,7 @@ const float motZeros[8] = {5.200, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.679
 // our behaviorCmd, and a checksum.
 struct OptPacket
 {
-  float speed;
+  float fwdVel;
   float yaw;
   float var1;
   float var2;
@@ -52,6 +83,20 @@ struct SerialStatePacket
   Vector3 euler; // some robot state
   uint16_t checksum;
 };
+
+struct tempPacket
+{
+  int flag;
+  float temp;
+};
+
+struct SerialReturnCmdPacket //Made to view commands the robot is using for debugging
+{
+  char align[2];
+  uint32_t millis, lastRX; // report last reception from the computer
+  tempPacket tempData; // behavior commands
+  uint16_t checksum;
+};
 #pragma pack(pop)
 
 /**
@@ -72,9 +117,6 @@ public:
 
     // Stand still
     C->behavior.twist.linear.x = 0.0;
-
-    // Save time
-    oldMillis = S->millis;
   }
 
   // FROM COMMAND ROBOT------------------------------------------
@@ -90,10 +132,18 @@ public:
   SerialReturnCmdPacket rtnPacket;
 
   OptPacket cmdData;
-  Vector3 rtnData;
+  tempPacket rtnData;
   float xVel = 0.0;
   float zAng = 0.0;
   float zVel = 0.0;
+  float curSpeed = 0.0;
+  float curYaw = 0.0;
+  float optVar1 = 1.5;
+  float optVar2 = 0.3;
+  float optVar3 = 0.05;
+  float optVar4 = 0.0;
+  float optVar5 = 0.0;
+  float optVar6 = 0.0;
 
   // Keep track of our last state packet send
   const static uint32_t TX_EVERY_MS = 10;
@@ -118,7 +168,7 @@ public:
     uint8_t latestRX;
 
     // Loop through while there are new bytes available
-    while (read(STDIN_FILENO, &latestRX, 1) > 0)
+    while (read(SERIAL_AUX_FILENO, &latestRX, 1) > 0)
     {
       if (numAlignmentSeen == 0 && latestRX == ALIGNMENT_WORD[0])
       {
@@ -151,6 +201,16 @@ public:
 
               // Store last received time
               statePacket.lastRX = S->millis;
+
+              curSpeed = cmdData.fwdVel;
+              curYaw = cmdData.yaw;
+              optVar1 = cmdData.var1;
+              optVar2 = cmdData.var2;
+              optVar3 = cmdData.var3;
+              optVar4 = cmdData.var4;
+              optVar5 = cmdData.var5;
+
+              
             }
           }
           //printf("Checksum %u %u.\n", checksum, serial_packet.checksum);
@@ -160,33 +220,6 @@ public:
         }
       }
     }
-    //-------------------------------------------------------------
-
-    // TIMED WALK CODE_____________________________________________
-    // Increase timer
-    if(S->millis > oldMillis + 1000) 
-    {
-      timer++;
-      oldMillis = S->millis;
-    }
-
-    // Choose behavior speed
-    if(timer < 5){
-      // Stand still
-      C->behavior.twist.linear.x = 0.0;
-      C->behavior.twist.angular.z = 0.0;
-    }
-    else if(timer >= 5 && timer < 10)
-    {
-      // Walk forward slowly
-      C->behavior.twist.linear.x = xVel;
-      C->behavior.twist.angular.z = zAng;
-    }
-    else if(timer >= 10) {
-      // Reset timer
-      timer = 0;
-    }
-    //______________________________________________________________
 
     // FROM COMMAND ROBOT----------------------------------------
     // Send state
@@ -199,23 +232,21 @@ public:
       statePacket.checksum = bufChecksum((const uint8_t *)&statePacket, sizeof(SerialStatePacket) - 2);
       write(STDOUT_FILENO, &statePacket, sizeof(statePacket));
       */
-      rtnData.x = C->behavior.twist.linear.x;
-      rtnData.y = C->behavior.twist.angular.z;
-      rtnData.z = C->behavior.twist.linear.z;
+      rtnData.flag = thermalObserverPeripheral.offFlag;
+      rtnData.temp = thermalObserverPeripheral.maxTemp;
 
       lastTX = rtnPacket.millis = S->millis;
       memcpy(rtnPacket.align, ALIGNMENT_WORD, 2);
-      memcpy(&rtnPacket.commandData, &rtnData, sizeof(Vector3));
+      memcpy(&rtnPacket.tempData, &rtnData, sizeof(tempPacket));
       rtnPacket.checksum = bufChecksum((const uint8_t *)&rtnPacket, sizeof(SerialReturnCmdPacket) - 2);
-      write(STDOUT_FILENO, &rtnPacket, sizeof(rtnPacket));
+      write(SERIAL_AUX_FILENO, &rtnPacket, sizeof(rtnPacket));
 
     }
     //-------------------------------------------------------------
   }
 };
 
-
-
+CommandRobot cmdRobot;
 
 
 void OldWalk::signal(uint8_t sig) {
@@ -246,14 +277,16 @@ void OldWalk::update() {
   // for the rest of the code, either bInverted or bUpright is true; use either to check
   // if running in inverted mode.
 
-  extDes = map(C->behavior.pose.position.z, -1, 1, 1.0, 2.5);
-  speedDes = map(C->behavior.twist.linear.x, -1, 1, -1, 1);
-  yawDes = map(C->behavior.twist.angular.z, -1, 1, -0.07, 0.07);
-  if (mode == WM_SIT)
+  //extDes = map(C->behavior.pose.position.z, -1, 1, 1.0, 2.5);
+  extDes = cmdRobot.optVar1; //1.5;
+  float extDesDeadband = cmdRobot.optVar3;
+  speedDes = cmdRobot.curSpeed; //map(cmdRobot.curSpeed, -1, 1, -1, 1);
+  yawDes = cmdRobot.curYaw; //map(cmdRobot.curYaw, -1, 1, -0.07, 0.07);
+  //if (mode == WM_SIT)
     // extDes = 0.8;
 
   // RELAX SIT based on if just standing
-  if (fabsf(speedDes) < 0.3 && fabsf(yawDes) < 0.05)
+  if (fabsf(speedDes) < 0.3 && fabsf(yawDes) < extDesDeadband)
     relaxTimer++;
   else
     relaxTimer=0;
@@ -313,7 +346,7 @@ void OldWalk::update() {
   const float kAngPFlight = 0.6, kAngDFlight = 0.01;// 0.2 for lighter limbs
   // Positions
   // float extDes = 2.5;//stance extension
-  const float extMin = 0.3;//0.7//0.5 for light limbs minimum extension in retraction
+  float extMin = cmdRobot.optVar2; //0.3;//0.7//0.5 for light limbs minimum extension in retraction
   const float kPEPthresh = 0.2;//0.1;// (i==1 || i==3) ? 0.3 : 0.1; //0.3 and 0.1
   // Forces
   // const float kTDthresh = 5;//;
@@ -340,8 +373,8 @@ void OldWalk::update() {
 
   // Trot walk ----------------------------------------------
   // flightLeg will be -1, 0, or 1
-  float speedAccum = 0;
-  int numInStance = 0;
+  //float speedAccum = 0;
+  //int numInStance = 0;
 
   for (int i=0; i<4; ++i) {
     bool bRear = (i==1 || i==3);
@@ -350,7 +383,8 @@ void OldWalk::update() {
     bool bRight = (i>1);
     // IMPORTANT: set nominal limb angles
     // float angNom = bRear ? 0.1 : 0.1;
-    float angNom = bRear ? 0.1 : 0.0;
+    //float angNom = bRear ? 0.1 : 0.0;
+    float angNom = bRear ? cmdRobot.optVar4 : cmdRobot.optVar5;
     // get positions
     float ext = limb[i].getPosition(EXTENSION);
     float extvel = limb[i].getVelocity(EXTENSION);
@@ -463,7 +497,7 @@ void OldWalk::update() {
     // liftoff 
     if (flightLeg==-1 && S->millis - tTD > tminstance) {
       // based on yawDes or PEP
-      if (fabsf(yawDes) > 0.05 || fabsf(absAngles[i]) > kPEPthresh) {
+      if (fabsf(yawDes) > extDesDeadband || fabsf(absAngles[i]) > kPEPthresh) {
         flightLeg = nextFlightLeg;
         tLO = S->millis;
         pep = absAngles[i];
@@ -480,11 +514,14 @@ void debug()
 	// 		// Use setOpenLoop to exert the highest possible vertical force
 	// 		printf("Motor %d command: %4.3f \n",i, joint[i].getOpenLoop());  
 	// 	}
-	printf("Speed Des: %4.3f \t", oldWalk.speedDes); 
-	printf("Yaw Des: %4.3f \t", oldWalk.yawDes); 
-	printf("Ext Des: %4.3f \t", oldWalk.extDes);
-	printf("\n");  
+
+	//printf("Speed Des: %d \t", thermalObserverPeripheral.offFlag); 
+	//printf("Yaw Des: %4.3f \t", thermalObserverPeripheral.maxTemp); 
+	//printf("Ext Des: %4.3f \t", oldWalk.extDes);
+	//printf("\n");  
 }
+
+OldWalk oldWalk;
 
 int main(int argc, char *argv[])
 {
@@ -500,29 +537,33 @@ int main(int argc, char *argv[])
 #error "Define robot type in preprocessor"
 #endif
 
-	setDebugRate(1);
+	setDebugRate(20);
 
   // Disable joystick input
   JoyType joyType = JoyType_NONE;
   ioctl(JOYSTICK_FILENO, IOCTL_CMD_JOYSTICK_SET_TYPE, &joyType);
 
   // Change serial port baud speed. 115200, 8N1 is the default already, but this demonstrates how to change to other settings
+
+  SerialPortConfig cfgAux;
+  cfgAux.baud = 115200;
+  cfgAux.mode = SERIAL_8N1;
+  ioctl(SERIAL_AUX_FILENO, IOCTL_CMD_SERIAL_PORT_CFG, &cfgAux);
+
   SerialPortConfig cfg;
   cfg.baud = 115200;
   cfg.mode = SERIAL_8N1;
   ioctl(STDOUT_FILENO, IOCTL_CMD_SERIAL_PORT_CFG, &cfg);
 
-	// Declare instance of our behavior
-  OldWalk oldWalk;
+  thermalObserverPeripheral.begin();
+  addPeripheral(&thermalObserverPeripheral);
+  // Create and add controller peripheral
+  addPeripheral(&cmdRobot);
+  cmdRobot.begin();
 
   // Remove all GR behaviors from Minitaur and add our behavior
   behaviors.clear();
   behaviors.push_back(&oldWalk);
-
-  // Create and add controller peripheral
-  CommandRobot cmdRobot;
-  addPeripheral(&cmdRobot);
-  cmdRobot.begin();
 
 	return begin();
 }

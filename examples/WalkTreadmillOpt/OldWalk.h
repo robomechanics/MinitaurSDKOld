@@ -65,6 +65,7 @@ public:
   }
   void walk() {
     mode = WM_WALK;
+    
     tstart = S->millis;
   }
   void sit() {
