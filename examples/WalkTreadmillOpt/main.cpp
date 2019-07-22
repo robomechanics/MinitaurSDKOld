@@ -47,7 +47,7 @@ ThermalObserverPeripheral thermalObserverPeripheral;
 #if defined(ROBOT_MINITAUR)
 // Subject to change for individual robots
 // const float motZeros[8] = {2.82, 3.435, 3.54, 3.076, 1.03, 3.08, 6.190, 1.493};
-const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 1.556, .675, 2.38}; // RML Ellie
+const float motZeros[8] = {0.93, 5.712, 3.777, 3.853, 2.183, 5.96, .675, 0.82}; // RML Ellie
 // const float motZeros[8] = {0.631, 4.076, 1.852, 3.414, 1.817, 5.500, 1.078, 6.252}; //RML Odie
 #endif
 
@@ -138,12 +138,14 @@ public:
   float zVel = 0.0;
   float curSpeed = 0.0;
   float curYaw = 0.0;
-  float optVar1 = 1.5;
-  float optVar2 = 0.3;
-  float optVar3 = 0.05;
-  float optVar4 = 0.0;
-  float optVar5 = 0.0;
+  float optVar1 = 0.0; //speed
+  float optVar2 = 1.5; //stance height
+  float optVar3 = 0.3; //Kp stance
+  float optVar4 = 0.02; //Kd stance
+  float optVar5 = 0.15; //TD open loop gain
   float optVar6 = 0.0;
+  float optVar7 = 0.0;
+
 
   // Keep track of our last state packet send
   const static uint32_t TX_EVERY_MS = 10;
@@ -209,6 +211,8 @@ public:
               optVar3 = cmdData.var3;
               optVar4 = cmdData.var4;
               optVar5 = cmdData.var5;
+              optVar6 = cmdData.var6;
+              optVar7 = cmdData.var7;
 
               
             }
@@ -278,9 +282,9 @@ void OldWalk::update() {
   // if running in inverted mode.
 
   //extDes = map(C->behavior.pose.position.z, -1, 1, 1.0, 2.5);
-  extDes = cmdRobot.optVar1; //1.5;
-  float extDesDeadband = cmdRobot.optVar3;
-  speedDes = cmdRobot.curSpeed; //map(cmdRobot.curSpeed, -1, 1, -1, 1);
+  extDes = cmdRobot.optVar2; //1.5;
+  float extDesDeadband = 0.009;
+  speedDes = cmdRobot.optVar1;//cmdRobot.curSpeed; //map(cmdRobot.curSpeed, -1, 1, -1, 1);
   yawDes = cmdRobot.curYaw; //map(cmdRobot.curYaw, -1, 1, -0.07, 0.07);
   //if (mode == WM_SIT)
     // extDes = 0.8;
@@ -340,17 +344,18 @@ void OldWalk::update() {
   const float kRoll = 1.5, kRollD = 0.02;
   // const float kRoll = 2.5, kRollD = 0.03;
   // Gains position control
-  const float kExtPStance = 0.3, kExtDStance = 0.02;
-  // const float kExtPStance = 0.5, kExtDStance = 0.01;
+  //const float kExtPStance = 0.3, kExtDStance = 0.02;
+  float kExtPStance = cmdRobot.optVar3;
+  float kExtDStance = cmdRobot.optVar4;
   const float kExtPFlight = 0.7, kExtDFlight = 0.005;//0.6//0.4 for lighter limbs
   const float kAngPFlight = 0.6, kAngDFlight = 0.01;// 0.2 for lighter limbs
   // Positions
   // float extDes = 2.5;//stance extension
-  float extMin = cmdRobot.optVar2; //0.3;//0.7//0.5 for light limbs minimum extension in retraction
+  float extMin = 0.24; //from last opt run //0.3;//0.7//0.5 for light limbs minimum extension in retraction
   const float kPEPthresh = 0.2;//0.1;// (i==1 || i==3) ? 0.3 : 0.1; //0.3 and 0.1
   // Forces
   // const float kTDthresh = 5;//;
-
+  float tdGain = cmdRobot.optVar5
 
 
 
@@ -385,9 +390,9 @@ void OldWalk::update() {
     // float angNom = bRear ? 0.1 : 0.1;
     //float angNom = bRear ? 0.1 : 0.0;
     float angNom = bRear ? cmdRobot.optVar4 : cmdRobot.optVar5;
-    // get positions
-    float ext = limb[i].getPosition(EXTENSION);
-    float extvel = limb[i].getVelocity(EXTENSION);
+    // // get positions
+    // float ext = limb[i].getPosition(EXTENSION);
+    // float extvel = limb[i].getVelocity(EXTENSION);
 
     // Diagonal pair
     // Normally two limbs in flight, but if stepping is activated only stepLeg is in flight
@@ -410,7 +415,7 @@ void OldWalk::update() {
       }
       else {
         // No TD detection
-        limb[i].setOpenLoop(EXTENSION, 0.15);// 0.05 on lighter limbs
+        limb[i].setOpenLoop(EXTENSION, tdGain);// 0.05 on lighter limbs //0.15
       }
       // AEP based on PEP
       const float TDFRAC = 0.8;
@@ -491,6 +496,10 @@ void OldWalk::update() {
       }
 
       float kOffset = (flightLeg == -1) ? 0 : 0.03;
+
+      // get positions
+      float ext = limb[i].getPosition(EXTENSION);
+      float extvel = limb[i].getVelocity(EXTENSION);
 
       limb[i].setOpenLoop(EXTENSION, kExtPStance*(extDes - ext) - kExtDStance*extvel + rollCtrl + pitchCtrl + kOffset);
     }
