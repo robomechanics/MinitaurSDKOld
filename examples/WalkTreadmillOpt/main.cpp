@@ -355,7 +355,7 @@ void OldWalk::update() {
   const float kPEPthresh = 0.2;//0.1;// (i==1 || i==3) ? 0.3 : 0.1; //0.3 and 0.1
   // Forces
   // const float kTDthresh = 5;//;
-  float tdGain = cmdRobot.optVar5
+  float tdGain = cmdRobot.optVar5;
 
 
 
