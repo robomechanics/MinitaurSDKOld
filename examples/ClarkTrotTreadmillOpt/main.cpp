@@ -251,12 +251,12 @@ public:
 	float angNom;   // nominal foot angle
 	float onCmd;    // On/Off command for walking gait
 
-	float freq = cmdRobot.optVar1; //4.750; 	//Frequency of gait (Hz)
-	float df = cmdRobot.optVar2; 				//Duty Factor (%)
-	float strokeLen = cmdRobot.optVar3;//0.16; 	//Stroke Length (m)
-	float beta = cmdRobot.optVar4; //60; 		//Approach Angle (deg)
-	float Kp = cmdRobot.optVar5; //1.70; 		//Extension Proportional Gain
-	float Kd = cmdRobot.optVar6; //0.018; 		//Extension Derivative Gain
+	float freq; //4.750; 	//Frequency of gait (Hz)
+	float df; 				//Duty Factor (%)
+	float strokeLen;//0.16; //Stroke Length (m)
+	float beta; //60; 		//Approach Angle (deg)
+	float Kp; //1.70; 		//Extension Proportional Gain
+	float Kd; //0.018; 		//Extension Derivative Gain
 
 	float extRetract = 0.065; 					//Extension Retraction Height (m)
 	float gcl = 0.17; 							//min ground clearance (m)
@@ -286,7 +286,7 @@ public:
 				// and aft-displacement of rear legs)
 				// The pitch angle (S->imu.euler.y) is subtracted since we want to the set the *absolute* leg angle
 				// and limb[i].setPosition(ANGLE, *) will set the angle of the leg *relative* to the robot body
-				angDes = (isFront(i)) ? -S->imu.euler.y + 10.0/180*M_PI : -S->imu.euler.y;
+				angDes = (isFront(i)) ? -S->imu.euler.y + 5.0/180*M_PI : -S->imu.euler.y + 5.0/180*M_PI;
 				limb[i].setGain(ANGLE, 0.8, .03);
 				limb[i].setPosition(ANGLE, angDes);
 				limb[i].setGain(EXTENSION, 120, 3);
@@ -295,6 +295,14 @@ public:
 			}
 		}
 		else if (mode == CT_WALK) {
+
+			freq = cmdRobot.optVar1; //4.750; 	//Frequency of gait (Hz)
+		 	df = cmdRobot.optVar2; 				//Duty Factor (%)
+		 	strokeLen = cmdRobot.optVar3;//0.16; 	//Stroke Length (m)
+ 			beta = cmdRobot.optVar4; //60; 		//Approach Angle (deg)
+ 			Kp = cmdRobot.optVar5; //1.70; 		//Extension Proportional Gain
+		 	Kd = cmdRobot.optVar6; //0.018; 		//Extension Derivative Gain
+
 			float stanceExt = sqrt(pow(strokeLen/2,2)+pow(gcl,2));
 			float stanceAng = atan((strokeLen/2)/gcl);
 
@@ -316,7 +324,7 @@ public:
 
 				yawCmd = (i==0 || i==1) ?  -cmdRobot.curYaw: cmdRobot.curYaw;
 
-				angNom = isFront(i) ?  10.0/180*M_PI: 0.0;
+				angNom = isFront(i) ?  10.0/180*M_PI: 10.0/180*M_PI;
 
 				float frac = (fmod(cTime + (legPhase*(1/freq)/2*1000), 1000/freq))*freq*0.1;
 
@@ -362,8 +370,9 @@ ClarkTrot cTrot;
 
 void debug()
 {
-
-    //printf("time : %lu\n", cTrot.cTime);
+	//printf("time : %lu\n", cTrot.cTime);
+    //printf("On Command : %f\n", cTrot.onCmd);
+    //printf("CurSpeed : %f\n", cmdRobot.curSpeed);
   	//printf("\n");
 }
 
@@ -381,7 +390,7 @@ int main(int argc, char *argv[])
 #error "Define robot type in preprocessor"
 #endif
 
-	//setDebugRate(20);
+	setDebugRate(1);
 
 	// Disable joystick input
 	JoyType joyType = JoyType_NONE;
