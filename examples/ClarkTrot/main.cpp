@@ -67,7 +67,8 @@ public:
 	float extRetract = 0.065; //Extension Retraction Height (m)
 	float gcl = 0.17; //min ground clearance (m)
 
-	float angNom = 13.0/180*M_PI; // nominal foot angle
+	float angNom;//= 10.0/180*M_PI; // nominal foot angle
+	float angOffset = 10.0/180*M_PI;
 
 	uint32_t tStart; //gait start time (ms)
 	uint32_t cTime; //cycle time (ms)
@@ -92,14 +93,20 @@ public:
 
 	void begin()
 	{
-		mode = CT_WALK;			// Start behavior in STAND mode
+		mode = CT_SIT;			// Start behavior in STAND mode
 		tStart = S->millis;		// Record the system time @ this transition
 		exCmd = 0.14;					//Set extension command to be 0.14m, the current value of extension
 		lastExtension = 0.14; // Record the previous loop's extension; it should be 0.14m
 	}
 
 	void update()
-	{
+	{	
+		if(C->behavior.twist.angular.z > 0.5) {
+			mode = CT_WALK;
+		}
+		else {
+			mode = CT_SIT;
+		}
 		C->mode = RobotCommand_Mode_JOINT;
 		if (isReorienting())
 			return;
@@ -113,7 +120,7 @@ public:
 				// and aft-displacement of rear legs)
 				// The pitch angle (S->imu.euler.y) is subtracted since we want to the set the *absolute* leg angle
 				// and limb[i].setPosition(ANGLE, *) will set the angle of the leg *relative* to the robot body
-				angDes = (isFront(i)) ? -S->imu.euler.y - 0.1 : -S->imu.euler.y + 0.2;
+				angDes = (isFront(i)) ? -S->imu.euler.y + 5.0/180*M_PI : -S->imu.euler.y + 5.0/180*M_PI;
 				limb[i].setGain(ANGLE, 0.8, .03);
 				limb[i].setPosition(ANGLE, angDes);
 
@@ -186,22 +193,20 @@ public:
 			float resetFrac = 100 - df - matchFrac;
 			float gclFrac = resetFrac/(phi+stanceAng)*stanceAng;
 
-			temp1 = (fmod(cTime + ((1/freq)/2*1000), 1000/freq))*freq*0.1;
-			temp2 = (fmod(cTime, 1000/freq))*freq*0.1 ;
-			temp3 = ((1/freq)/2*1000);
-			temp4 = 1000/freq;
-
 			cTime = (S->millis - tStart); //cycle time
 
-			yawDes = map(C->behavior.twist.angular.z, -1, 1, -yawMax, yawMax);
+			yawDes = 0.0; // map(C->behavior.twist.angular.z, -1, 1, -yawMax, yawMax);
 
 			for (int i = 0; i < P->limbs_count; ++i)
 			{
 				P->limbs[i].type = LimbParams_Type_SYMM5BAR_EXT_M;
 
+				//Diagonal Pairs
 				uint32_t legPhase = (i==0 || i==3) ? 0 : 1;
-
+				//Left/Right Pairs
 				yawCmd = (i==0 || i==1) ?  -yawDes: yawDes;
+				//Front/Back Pairs
+				angNom = isFront(i) ?  10.0/180*M_PI: 10.0/180*M_PI;
 
 
 				float frac = (fmod(cTime + (legPhase*(1/freq)/2*1000), 1000/freq))*freq*0.1;
@@ -260,10 +265,6 @@ void debug()
 {
 
     //printf("time : %lu\n", cTrot.cTime);
-    printf("temp1 : %f\n", cTrot.temp1);
-    printf("temp2 : %f\n", cTrot.temp2);
-    printf("temp3 : %f\n", cTrot.temp3);
-    printf("temp4 : %f\n", cTrot.temp4);
   	//printf("\n");
 }
 
